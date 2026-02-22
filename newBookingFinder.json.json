@@ -2,43 +2,107 @@
   "name": "Hostfully to Operto Reservation Cleaning Sync",
   "nodes": [
     {
+      "parameters": {},
+      "id": "8bdf64dc-7cef-4013-9c97-e8bc307aa334",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        80
+      ]
+    },
+    {
       "parameters": {
-        "jsCode": "return [{ json: { cursor: null, accumulatedLeads: [] } }];"
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "Untitled spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit#gid=0"
+        },
+        "options": {}
       },
-      "id": "4313ce33-1058-4f24-8821-b228b0de4aaf",
+      "id": "73da9d8a-a7f5-46d3-a368-3e319c8ae30c",
+      "name": "Read Last Timestamp",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -224,
+        80
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Configure: Document (spreadsheet), Sheet. Sheet must have columns 'key' (A) and 'storedTimestamp' (B). Row 2: key=config, storedTimestamp=<ISO date>. Output field: storedTimestamp."
+    },
+    {
+      "parameters": {
+        "jsCode": "let storedTimestamp = '1970-01-01T00:00:00.000Z';\ntry {\n  const readOut = $('Read Last Timestamp').first().json;\n  storedTimestamp = readOut?.storedTimestamp || readOut?.lastProcessedTimestamp || storedTimestamp;\n} catch (_) {}\nreturn [{ json: { cursor: null, accumulatedLeads: [], storedTimestamp } }];"
+      },
+      "id": "b275c2c6-b739-459c-be90-44bf986b3c3a",
       "name": "Initialize Cursor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        1264
+        224,
+        80
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Use previous run of Accumulate Leads when runIndex > 0, else Initialize Cursor\nconst isFirstRun = typeof $runIndex === 'undefined' || $runIndex === 0;\nconst previousData = isFirstRun\n  ? $(\"Initialize Cursor\").first().json\n  : $(\"Accumulate Leads\").first(0, $runIndex - 1).json;\n\nconst response = $(\"Fetch Hostfully Leads\").all()[0].json;\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging?._nextCursor ?? null;\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...(previousData.accumulatedLeads || []), ...newLeads]\n  }\n}];"
+        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince={{ $('Edit Fields').item.json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencyUid",
+              "value": "35842d2f-b5c1-46fa-a33d-a12756b42ed8"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-HOSTFULLY-APIKEY",
+              "value": "t0JOVEKKJhZfkvv1"
+            }
+          ]
+        },
+        "options": {}
       },
-      "id": "e17e16e9-a024-499e-9bd3-1f6b7ec2c1b1",
+      "id": "77bceffc-0288-4762-b429-1c6366ba552a",
+      "name": "Fetch Hostfully Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        448,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use previous run of Accumulate Leads when runIndex > 0, else Initialize Cursor\nconst isFirstRun = typeof $runIndex === 'undefined' || $runIndex === 0;\nconst previousData = isFirstRun\n  ? $('Initialize Cursor').first().json\n  : $('Accumulate Leads').first(0, $runIndex - 1).json;\n\nconst response = $('Fetch Hostfully Leads').all()[0].json;\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging?._nextCursor ?? null;\nconst storedTimestamp = previousData.storedTimestamp;\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...(previousData.accumulatedLeads || []), ...newLeads],\n    storedTimestamp: storedTimestamp\n  }\n}];"
+      },
+      "id": "3493a540-ee10-482a-bec5-d2b0139494d7",
       "name": "Accumulate Leads",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1088,
-        1264
-      ]
-    },
-    {
-      "parameters": {
-        "fieldToSplitOut": "accumulatedLeads",
-        "options": {}
-      },
-      "id": "61fa73b4-554c-4835-bb2b-7ae6bb9f9f4a",
-      "name": "Output Leads Individually",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [
-        1584,
-        1264
+        672,
+        16
       ]
     },
     {
@@ -66,66 +130,201 @@
         },
         "options": {}
       },
-      "id": "3d6ef96e-cef2-4b51-9c1f-1c95a1964812",
+      "id": "119ec0d1-129c-44fe-a0db-b29a36915c6e",
       "name": "Has More Pages?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1328,
-        1264
+        896,
+        80
       ]
     },
     {
       "parameters": {
-        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince=2026-02-19T01:00:00{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "agencyUid",
-              "value": "35842d2f-b5c1-46fa-a33d-a12756b42ed8"
-            }
-          ]
+        "fieldToSplitOut": "accumulatedLeads",
+        "options": {}
+      },
+      "id": "f9dd6b0d-98a1-445b-841e-ae2e545847c8",
+      "name": "Output Leads Individually",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created > storedTimestamp) {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
+      },
+      "id": "f9926d0b-309d-4ea1-9cbd-8490ec388c67",
+      "name": "Filter New Bookings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst leads = data.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nconst newStoredTimestamp = maxUpdated || data.storedTimestamp || '1970-01-01T00:00:00.000Z';\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
+      },
+      "id": "1521b0a4-de0f-49d4-b704-92c6d1123391",
+      "name": "Compute Max Updated Timestamp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "Untitled spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
         },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ $json.key }}",
+            "storedTimestamp": "={{ $json.storedTimestamp }}",
+            "row_number": 0
+          },
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": [
             {
-              "name": "X-HOSTFULLY-APIKEY",
-              "value": "t0JOVEKKJhZfkvv1"
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "storedTimestamp",
+              "displayName": "storedTimestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7a571f38-a034-48f4-a02b-6832473678dd",
+      "name": "Update Stored Timestamp",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        176
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Updates the row where key=config with new storedTimestamp. Same sheet as Read Last Timestamp."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9001cbca-3efd-4dcb-b152-1bf9e62cd4de",
+              "name": "storedTimestamp",
+              "value": "={{ $json.storedTimestamp.replace(' ', 'T') }}",
+              "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "e9f2be71-373d-4b1d-8785-21f946bb89e5",
-      "name": "Fetch Hostfully Leads",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        832,
-        1264
-      ]
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        320,
-        1264
+        0,
+        80
       ],
-      "id": "f9fea6a4-82e7-4dc7-bdb7-41628d0c4ea2",
-      "name": "When clicking ‘Execute workflow’"
+      "id": "f76f9f46-6363-4edc-8ca3-57d3d0f23d50",
+      "name": "Edit Fields"
     }
   ],
   "pinData": {},
   "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Read Last Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Last Timestamp": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Initialize Cursor": {
       "main": [
         [
           {
             "node": "Fetch Hostfully Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Hostfully Leads": {
+      "main": [
+        [
+          {
+            "node": "Accumulate Leads",
             "type": "main",
             "index": 0
           }
@@ -150,6 +349,11 @@
             "node": "Output Leads Individually",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Compute Max Updated Timestamp",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -163,21 +367,27 @@
     },
     "Output Leads Individually": {
       "main": [
-        []
-      ]
-    },
-    "Fetch Hostfully Leads": {
-      "main": [
         [
           {
-            "node": "Accumulate Leads",
+            "node": "Filter New Bookings",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "When clicking ‘Execute workflow’": {
+    "Compute Max Updated Timestamp": {
+      "main": [
+        [
+          {
+            "node": "Update Stored Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
       "main": [
         [
           {
@@ -195,10 +405,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "6516e8ef-76d0-41f0-bb0b-ed126f297339",
+  "versionId": "58143bf8-b366-40ba-87c7-49d16b9ad468",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
   },
-  "id": "lK3a0UuuNq39FYlA",
+  "id": "phsZKCc3UwqoJE3c",
   "tags": []
 }

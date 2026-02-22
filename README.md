@@ -1,6 +1,6 @@
 # Hostfully to Operto Reservation Cleaning Sync
 
-n8n workflow that fetches leads from the Hostfully API with pagination and outputs them as individual items, intended for use in a Hostfully → Operto reservation/cleaning sync.
+n8n workflow that fetches leads from the Hostfully API using a stored **last-processed timestamp** (in Google Sheets), accumulates them with pagination, filters to **new bookings only** (by `createdUtcDateTime`), and updates the stored timestamp from the max **updatedUtcDateTime** so the next run only fetches newer leads.
 
 ---
 
@@ -10,7 +10,7 @@ n8n workflow that fetches leads from the Hostfully API with pagination and outpu
 |----------|--------|
 | **Workflow name** | Hostfully to Operto Reservation Cleaning Sync |
 | **Trigger** | Manual (“Execute workflow”) |
-| **Purpose** | Fetch all leads from Hostfully (with pagination), accumulate them, then output one item per lead for downstream nodes (e.g. Operto sync). |
+| **Purpose** | Fetch leads updated after last stored timestamp, detect new bookings, output only new bookings for downstream use, and advance the stored timestamp. |
 
 ---
 
@@ -18,13 +18,34 @@ n8n workflow that fetches leads from the Hostfully API with pagination and outpu
 
 ```
 Manual trigger
-    → Initialize Cursor
-    → Fetch Hostfully Leads (first page)
+    → Read Last Timestamp (Google Sheets)
+    → Initialize Cursor (cursor, accumulatedLeads, storedTimestamp)
+    → Fetch Hostfully Leads (updatedSince = storedTimestamp)
     → Accumulate Leads
     → Has More Pages?
-        → Yes: loop back to Fetch Hostfully Leads
-        → No:  Output Leads Individually (one item per lead)
+        → No (no more pages):
+            → Output Leads Individually
+            → Filter New Bookings (createdUtcDateTime > storedTimestamp)
+            → (downstream: e.g. Operto sync)
+        → and → Compute Max Updated Timestamp
+            → Update Stored Timestamp (Google Sheets)
+        → Yes (more pages): loop back to Fetch Hostfully Leads
 ```
+
+---
+
+## Google Sheets Setup
+
+Use one sheet to store the last-processed timestamp.
+
+- **Columns:** `key` (e.g. column A), `storedTimestamp` (e.g. column B).
+- **Row 1:** Headers: `key`, `storedTimestamp` (or `lastProcessedTimestamp`).
+- **Row 2:** `key` = `config`, `storedTimestamp` = ISO date string (e.g. `2026-02-19T00:00:00.000Z`).
+
+**Read Last Timestamp** reads from this sheet (output field used in the workflow: `storedTimestamp`).  
+**Update Stored Timestamp** writes the new value back to the same sheet (row where `key` = `config`).
+
+If the sheet is empty or the read returns no rows, the workflow uses `1970-01-01T00:00:00.000Z` so the first run fetches all leads.
 
 ---
 
@@ -37,102 +58,111 @@ Manual trigger
 
 ---
 
-### 2. Initialize Cursor
+### 2. Read Last Timestamp
 
-- **Type:** Code  
-- **Role:** Sets initial state for pagination and accumulation.
-- **Output:** One item with:
-  - `cursor`: `null` (no cursor for first request)
-  - `accumulatedLeads`: `[]`
-
-This is passed into the first “Fetch Hostfully Leads” call.
+- **Type:** Google Sheets (Read)  
+- **Role:** Reads the stored last-processed timestamp from the sheet.
+- **Output:** One or more rows; the workflow uses the first row and expects a field `storedTimestamp` or `lastProcessedTimestamp` (mapped to `storedTimestamp` in **Initialize Cursor**).
+- **Configure:** Document (spreadsheet), Sheet name, and Google Sheets credentials.
 
 ---
 
-### 3. Fetch Hostfully Leads
+### 3. Initialize Cursor
+
+- **Type:** Code  
+- **Role:** Sets initial state for pagination and passes through the stored timestamp.
+- **Output:** One item:
+  - `cursor`: `null`
+  - `accumulatedLeads`: `[]`
+  - `storedTimestamp`: from **Read Last Timestamp** (or `1970-01-01T00:00:00.000Z` if missing/empty).
+
+---
+
+### 4. Fetch Hostfully Leads
 
 - **Type:** HTTP Request  
-- **Role:** Calls Hostfully API v3 to get a page of leads.
-- **Details:**
-  - **URL:**  
-    `https://platform.hostfully.com/api/v3/leads?updatedSince=2026-02-19T01:00:00`  
-    Plus `&_cursor=<cursor>` when a cursor exists (from previous accumulation).
-  - **Method:** GET (default for this setup).
-  - **Query parameters:**
-    - `agencyUid`: `35842d2f-b5c1-46fa-a33d-a12756b42ed8`
-  - **Headers:**
-    - `X-HOSTFULLY-APIKEY`: (Hostfully API key)
+- **Role:** Fetches a page of leads updated **after** `storedTimestamp`.
+- **URL:**  
+  `https://platform.hostfully.com/api/v3/leads?updatedSince={{ $json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}`
+- **Query:** `agencyUid` (unchanged).
+- **Headers:** `X-HOSTFULLY-APIKEY` (Hostfully API key).
 
-Expects a response that includes:
-
-- `leads`: array of lead objects  
-- `_paging._nextCursor`: cursor for the next page (optional; null/absent when no more pages)
+Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 
 ---
 
-### 4. Accumulate Leads
+### 5. Accumulate Leads
 
 - **Type:** Code  
-- **Role:** Merges the new page of leads with previously accumulated leads and updates the cursor. Correctly accumulates across all loop iterations (not only the last page).
-- **Logic:**
-  - **First run** (`$runIndex` undefined or 0): reads previous state from **Initialize Cursor** (`cursor`, `accumulatedLeads`).
-  - **Subsequent runs** (loop): reads previous state from the **previous run** of this node via `$("Accumulate Leads").first(0, $runIndex - 1).json`.
-  - Reads API response from **Fetch Hostfully Leads**: `leads`, and `_paging?._nextCursor` (optional chaining so missing `_paging` does not throw).
-  - Outputs one item with:
-    - `cursor`: `response._paging?._nextCursor ?? null`
-    - `accumulatedLeads`: `...(previousData.accumulatedLeads || []), ...newLeads`
-
-This single item is then used by **Has More Pages?** and, when done, by **Output Leads Individually**.
+- **Role:** Same pagination logic as before; also passes through `storedTimestamp` so the loop and **Filter New Bookings** can use it.
+- **Output:** One item with `cursor`, `accumulatedLeads`, and `storedTimestamp` (from previous run or **Initialize Cursor**).
 
 ---
 
-### 5. Has More Pages?1
+### 6. Has More Pages?1
 
 - **Type:** IF  
-- **Role:** Decides whether to fetch another page or finish.
-- **Condition:**  
-  `$json.cursor` is empty (null/empty string).
-  - **True (no more pages):** go to **Output Leads Individually**.
-  - **False (more pages):** go back to **Fetch Hostfully Leads** (uses the new `cursor` in the URL).
+- **Role:** Same as before: no more pages → **Output Leads Individually** and **Compute Max Updated Timestamp**; more pages → loop back to **Fetch Hostfully Leads**.
 
 ---
 
-### 6. Output Leads Individually
+### 7. Output Leads Individually
 
 - **Type:** Split Out  
-- **Role:** Turns the accumulated array into one item per lead for the next steps.
-- **Configuration:** Split out the field `accumulatedLeads`.
+- **Role:** Splits `accumulatedLeads` into one item per lead (unchanged).
 
-Downstream nodes receive one item per lead (e.g. for mapping to Operto reservations/cleaning tasks).
+---
+
+### 8. Filter New Bookings
+
+- **Type:** Code  
+- **Role:** Keeps only **newly created** bookings.
+- **Logic:** For each lead, keep it only if `lead.metadata.createdUtcDateTime > storedTimestamp` (uses `storedTimestamp` from **Accumulate Leads** last run).
+- **Output:** Only leads that are new bookings; downstream nodes (e.g. Operto) should connect here.
+
+---
+
+### 9. Compute Max Updated Timestamp
+
+- **Type:** Code  
+- **Role:** From **all** accumulated leads (not only filtered), compute the maximum `metadata.updatedUtcDateTime` so the next run can use it as `updatedSince`.
+- **Input:** The single item from **Has More Pages?** (no more pages) with `accumulatedLeads` and `storedTimestamp`.
+- **Output:** One item: `key: 'config'`, `storedTimestamp: maxUpdatedTime` (or previous `storedTimestamp` if no dates found). Does not assume API returns sorted data.
+
+---
+
+### 10. Update Stored Timestamp
+
+- **Type:** Google Sheets (Update)  
+- **Role:** Writes the new timestamp back to the sheet (row where `key` = `config`).
+- **Configure:** Same document/sheet as **Read Last Timestamp**, and column mapping for `key` and `storedTimestamp`.
 
 ---
 
 ## Configuration
 
-Values you may want to change:
-
-| What | Where | Current (example) |
-|------|--------|-------------------|
-| **Updated-since date** | Fetch Hostfully Leads → URL | `2026-02-19T01:00:00` |
-| **Agency UID** | Fetch Hostfully Leads → Query | `35842d2f-b5c1-46fa-a33d-a12756b42ed8` |
-| **Hostfully API key** | Fetch Hostfully Leads → Headers | Stored in header `X-HOSTFULLY-APIKEY` |
-
-**Security:** Prefer storing the API key in n8n credentials (e.g. HTTP Header Auth or a generic credential) and referencing it in the node instead of hardcoding it in the workflow.
+| What | Where |
+|------|--------|
+| **Google Sheets** | **Read Last Timestamp** and **Update Stored Timestamp**: Document, Sheet, credentials. |
+| **Stored timestamp cell** | Sheet layout: `key` + `storedTimestamp` (or `lastProcessedTimestamp`), row with `key` = `config`. |
+| **Agency UID** | Fetch Hostfully Leads → Query: `agencyUid`. |
+| **Hostfully API key** | Fetch Hostfully Leads → Headers: `X-HOSTFULLY-APIKEY`. Prefer n8n credentials over hardcoding. |
 
 ---
 
 ## Usage
 
-1. In n8n, import or open this workflow.
-2. Ensure the Hostfully API key (and optionally agency Uid / `updatedSince`) are set as above or via credentials.
-3. Run the workflow with **Execute workflow** (manual trigger).
-4. After it finishes, **Output Leads Individually** will have one item per lead; connect further nodes (e.g. Operto, filters, or other logic) to that node’s output.
+1. Create the Google Sheet with columns `key` and `storedTimestamp`, and one row `config` + initial timestamp (or leave empty for first run).
+2. In n8n, open the workflow and set Google Sheets credentials and document/sheet for **Read Last Timestamp** and **Update Stored Timestamp**.
+3. Run with **Execute workflow**.
+4. **Filter New Bookings** outputs only new bookings; connect Operto or other logic there.
+5. After each run, the sheet’s stored timestamp is updated so the next run only fetches leads updated after that time.
 
 ---
 
-## Notes
+## Rules (summary)
 
-- The workflow name refers to “Operto” but this workflow only fetches and normalizes Hostfully leads; any Operto sync or “cleaning” logic would be added in nodes after **Output Leads Individually**.
-- Pagination is cursor-based and continues until the API returns no `_nextCursor`. Accumulation uses n8n’s `$runIndex` so each loop iteration appends to the previous run’s `accumulatedLeads`.
-- The **Accumulate Leads** node uses `response._paging?._nextCursor` so a response without `_paging` (e.g. last page or error shape) does not cause a runtime error.
-- If the Hostfully response shape changes (e.g. `leads` or `_paging._nextCursor`), the **Accumulate Leads** and **Fetch Hostfully Leads** nodes may need to be updated.
+- **New bookings:** Use `metadata.createdUtcDateTime` and keep only leads with `createdUtcDateTime > storedTimestamp`.
+- **Advancing timestamp:** Use `metadata.updatedUtcDateTime`; set stored timestamp to **max** of all accumulated leads’ `updatedUtcDateTime`.
+- **No assumption of sorted data:** Max is always computed from the full `accumulatedLeads` list.
+- **Pagination:** Unchanged; accumulation and `storedTimestamp` pass-through only.
