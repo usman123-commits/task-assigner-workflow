@@ -1,6 +1,6 @@
 # Hostfully to Operto Reservation Cleaning Sync
 
-n8n workflow that fetches leads from the Hostfully API using a stored **last-processed timestamp** (in Google Sheets), accumulates them with pagination, filters to **new bookings only** (by `createdUtcDateTime`), and updates the stored timestamp from the max **updatedUtcDateTime** so the next run only fetches newer leads.
+n8n workflow that fetches leads from the Hostfully API using a stored **last-processed timestamp** (in Google Sheets), accumulates them with pagination, filters to **new confirmed bookings only** (`type === "BOOKING"`, `status === "BOOKED"`, `createdUtcDateTime > storedTimestamp`), and updates the stored timestamp from the max **updatedUtcDateTime** so the next run only fetches newer leads.
 
 ---
 
@@ -10,7 +10,7 @@ n8n workflow that fetches leads from the Hostfully API using a stored **last-pro
 |----------|--------|
 | **Workflow name** | Hostfully to Operto Reservation Cleaning Sync |
 | **Trigger** | Manual (“Execute workflow”) |
-| **Purpose** | Fetch leads updated after last stored timestamp, detect new bookings, output only new bookings for downstream use, and advance the stored timestamp. |
+| **Purpose** | Fetch leads updated after last stored timestamp, detect new confirmed bookings (BOOKING + BOOKED), output only those for downstream use, and advance the stored timestamp. |
 
 ---
 
@@ -25,7 +25,7 @@ Manual trigger
     → Has More Pages?
         → No (no more pages):
             → Output Leads Individually
-            → Filter New Bookings (createdUtcDateTime > storedTimestamp)
+            → Filter New Bookings (createdUtcDateTime > storedTimestamp; type BOOKING, status BOOKED)
             → (downstream: e.g. Operto sync)
         → and → Compute Max Updated Timestamp
             → Update Stored Timestamp (Google Sheets)
@@ -116,9 +116,14 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 ### 8. Filter New Bookings
 
 - **Type:** Code  
-- **Role:** Keeps only **newly created** bookings.
-- **Logic:** For each lead, keep it only if `lead.metadata.createdUtcDateTime > storedTimestamp` (uses `storedTimestamp` from **Accumulate Leads** last run).
-- **Output:** Only leads that are new bookings; downstream nodes (e.g. Operto) should connect here.
+- **Role:** Keeps only **newly created, confirmed bookings** (so downstream runs only for real bookings, not inquiries).
+- **Logic:** For each lead, return the lead only if **all** are true:
+  - `lead.metadata?.createdUtcDateTime` exists
+  - `createdUtcDateTime > storedTimestamp` (uses `storedTimestamp` from **Accumulate Leads** last run)
+  - `lead.type === "BOOKING"`
+  - `lead.status === "BOOKED"`
+- **Output:** Only confirmed new bookings; downstream nodes (e.g. Operto) should connect here. INQUIRY (NEW/CLOSED) and non-BOOKED leads are filtered out.
+- **Note:** “New” is based on **creation** time (`createdUtcDateTime`), not when the lead became BOOKED. See [Limitation: INQUIRY promoted to BOOKING](#limitation-inquiry-promoted-to-booking) if leads can start as INQUIRY and later become BOOKING.
 
 ---
 
@@ -155,7 +160,7 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 1. Create the Google Sheet with columns `key` and `storedTimestamp`, and one row `config` + initial timestamp (or leave empty for first run).
 2. In n8n, open the workflow and set Google Sheets credentials and document/sheet for **Read Last Timestamp** and **Update Stored Timestamp**.
 3. Run with **Execute workflow**.
-4. **Filter New Bookings** outputs only new bookings; connect Operto or other logic there.
+4. **Filter New Bookings** outputs only new confirmed bookings (BOOKING + BOOKED); connect Operto or other logic there.
 5. After each run, the sheet’s stored timestamp is updated so the next run only fetches leads updated after that time.
 
 ---
@@ -163,7 +168,25 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 ## Rules (summary)
 
 - **Timestamp format:** The value read from the sheet is normalized in **Initialize Cursor** (space → `T`) so it is valid for the Hostfully API. No separate Edit/Set node is used.
-- **New bookings:** Use `metadata.createdUtcDateTime` and keep only leads with `createdUtcDateTime > storedTimestamp`.
+- **New bookings:** Use `metadata.createdUtcDateTime`, `type === "BOOKING"`, and `status === "BOOKED"`; keep only leads that pass all three and `createdUtcDateTime > storedTimestamp`.
 - **Advancing timestamp:** Use `metadata.updatedUtcDateTime`; set stored timestamp to **max** of all accumulated leads’ `updatedUtcDateTime`.
 - **No assumption of sorted data:** Max is always computed from the full `accumulatedLeads` list.
 - **Pagination:** Unchanged; accumulation and `storedTimestamp` pass-through only.
+
+---
+
+## Limitation: INQUIRY promoted to BOOKING
+
+**Label:** `createdUtcDateTime` vs booking confirmation time
+
+The workflow detects “new booking” using **creation time** (`metadata.createdUtcDateTime > storedTimestamp`), not the time the lead became a confirmed booking.
+
+- **When this is fine:** If in your business a lead is created directly as BOOKING + BOOKED, creation time and booking time are the same. The current logic is correct.
+
+- **When this is a problem:** If a lead can start as **INQUIRY** and later be promoted to **BOOKING** + **BOOKED**, then:
+  - `createdUtcDateTime` stays the original (old) creation time.
+  - The workflow only keeps leads where `createdUtcDateTime > storedTimestamp`.
+  - So once `storedTimestamp` has moved past that creation time, the lead will **not** be detected as a new booking when it later becomes BOOKED.
+  - Result: **promoted INQUIRY → BOOKING leads can be missed** if they are confirmed after the stored timestamp has already advanced past their creation date.
+
+**If that scenario exists in your business:** Change the **Filter New Bookings** node to use `metadata.updatedUtcDateTime` instead of (or in addition to) `createdUtcDateTime` for the “is it new?” check, so that leads that were **updated** (e.g. promoted to BOOKED) after `storedTimestamp` are detected. The rest of the workflow (fetch by `updatedSince`, advance stored timestamp by max `updatedUtcDateTime`) already supports that approach.
