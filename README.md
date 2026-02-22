@@ -66,20 +66,21 @@ This is passed into the first “Fetch Hostfully Leads” call.
 Expects a response that includes:
 
 - `leads`: array of lead objects  
-- `_paging._nextCursor`: cursor for the next page (or null/absent when no more pages)
+- `_paging._nextCursor`: cursor for the next page (optional; null/absent when no more pages)
 
 ---
 
 ### 4. Accumulate Leads
 
 - **Type:** Code  
-- **Role:** Merges the new page of leads with previously accumulated leads and updates the cursor.
+- **Role:** Merges the new page of leads with previously accumulated leads and updates the cursor. Correctly accumulates across all loop iterations (not only the last page).
 - **Logic:**
-  - Reads previous state from **Initialize Cursor** output: `cursor`, `accumulatedLeads`.
-  - Reads API response from **Fetch Hostfully Leads**: `leads`, `_paging._nextCursor`.
+  - **First run** (`$runIndex` undefined or 0): reads previous state from **Initialize Cursor** (`cursor`, `accumulatedLeads`).
+  - **Subsequent runs** (loop): reads previous state from the **previous run** of this node via `$("Accumulate Leads").first(0, $runIndex - 1).json`.
+  - Reads API response from **Fetch Hostfully Leads**: `leads`, and `_paging?._nextCursor` (optional chaining so missing `_paging` does not throw).
   - Outputs one item with:
-    - `cursor`: `response._paging._nextCursor ?? null`
-    - `accumulatedLeads`: `previousData.accumulatedLeads` + `response.leads`
+    - `cursor`: `response._paging?._nextCursor ?? null`
+    - `accumulatedLeads`: `...(previousData.accumulatedLeads || []), ...newLeads`
 
 This single item is then used by **Has More Pages?** and, when done, by **Output Leads Individually**.
 
@@ -132,5 +133,6 @@ Values you may want to change:
 ## Notes
 
 - The workflow name refers to “Operto” but this workflow only fetches and normalizes Hostfully leads; any Operto sync or “cleaning” logic would be added in nodes after **Output Leads Individually**.
-- Pagination is cursor-based and continues until the API returns no `_nextCursor`.
+- Pagination is cursor-based and continues until the API returns no `_nextCursor`. Accumulation uses n8n’s `$runIndex` so each loop iteration appends to the previous run’s `accumulatedLeads`.
+- The **Accumulate Leads** node uses `response._paging?._nextCursor` so a response without `_paging` (e.g. last page or error shape) does not cause a runtime error.
 - If the Hostfully response shape changes (e.g. `leads` or `_paging._nextCursor`), the **Accumulate Leads** and **Fetch Hostfully Leads** nodes may need to be updated.

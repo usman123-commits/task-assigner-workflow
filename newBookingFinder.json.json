@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const previousData = $(\"Initialize Cursor\").all()[0].json;\n\nconst response = $(\"Fetch Hostfully Leads\").all()[0].json;\n\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging._nextCursor || null;\n\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...previousData.accumulatedLeads, ...newLeads]\n  }\n}];"
+        "jsCode": "// Use previous run of Accumulate Leads when runIndex > 0, else Initialize Cursor\nconst isFirstRun = typeof $runIndex === 'undefined' || $runIndex === 0;\nconst previousData = isFirstRun\n  ? $(\"Initialize Cursor\").first().json\n  : $(\"Accumulate Leads\").first(0, $runIndex - 1).json;\n\nconst response = $(\"Fetch Hostfully Leads\").all()[0].json;\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging?._nextCursor ?? null;\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...(previousData.accumulatedLeads || []), ...newLeads]\n  }\n}];"
       },
       "id": "e17e16e9-a024-499e-9bd3-1f6b7ec2c1b1",
       "name": "Accumulate Leads",
@@ -195,7 +195,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "54df37bb-ec5e-44fb-acd3-b084068920c5",
+  "versionId": "6516e8ef-76d0-41f0-bb0b-ed126f297339",
   "meta": {
     "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
   },
