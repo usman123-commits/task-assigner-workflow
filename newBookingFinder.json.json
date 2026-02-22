@@ -1,0 +1,204 @@
+{
+  "name": "Hostfully to Operto Reservation Cleaning Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { cursor: null, accumulatedLeads: [] } }];"
+      },
+      "id": "4313ce33-1058-4f24-8821-b228b0de4aaf",
+      "name": "Initialize Cursor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const previousData = $(\"Initialize Cursor\").all()[0].json;\n\nconst response = $(\"Fetch Hostfully Leads\").all()[0].json;\n\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging._nextCursor || null;\n\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...previousData.accumulatedLeads, ...newLeads]\n  }\n}];"
+      },
+      "id": "e17e16e9-a024-499e-9bd3-1f6b7ec2c1b1",
+      "name": "Accumulate Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "accumulatedLeads",
+        "options": {}
+      },
+      "id": "61fa73b4-554c-4835-bb2b-7ae6bb9f9f4a",
+      "name": "Output Leads Individually",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "d43ff919-7496-4ee8-b3ec-dc0cb340f6e0",
+              "leftValue": "={{ $json.cursor }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3d6ef96e-cef2-4b51-9c1f-1c95a1964812",
+      "name": "Has More Pages?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince=2026-02-19T01:00:00{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencyUid",
+              "value": "35842d2f-b5c1-46fa-a33d-a12756b42ed8"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-HOSTFULLY-APIKEY",
+              "value": "t0JOVEKKJhZfkvv1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e9f2be71-373d-4b1d-8785-21f946bb89e5",
+      "name": "Fetch Hostfully Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        832,
+        1264
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        320,
+        1264
+      ],
+      "id": "f9fea6a4-82e7-4dc7-bdb7-41628d0c4ea2",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Initialize Cursor": {
+      "main": [
+        [
+          {
+            "node": "Fetch Hostfully Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accumulate Leads": {
+      "main": [
+        [
+          {
+            "node": "Has More Pages?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has More Pages?1": {
+      "main": [
+        [
+          {
+            "node": "Output Leads Individually",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Hostfully Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Leads Individually": {
+      "main": [
+        []
+      ]
+    },
+    "Fetch Hostfully Leads": {
+      "main": [
+        [
+          {
+            "node": "Accumulate Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Initialize Cursor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "54df37bb-ec5e-44fb-acd3-b084068920c5",
+  "meta": {
+    "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
+  },
+  "id": "lK3a0UuuNq39FYlA",
+  "tags": []
+}
