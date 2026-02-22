@@ -49,7 +49,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let storedTimestamp = '1970-01-01T00:00:00.000Z';\ntry {\n  const readOut = $('Read Last Timestamp').first().json;\n  storedTimestamp = readOut?.storedTimestamp || readOut?.lastProcessedTimestamp || storedTimestamp;\n} catch (_) {}\nreturn [{ json: { cursor: null, accumulatedLeads: [], storedTimestamp } }];"
+        "jsCode": "let storedTimestamp = '1970-01-01T00:00:00.000Z';\ntry {\n  const readOut = $('Read Last Timestamp').first().json;\n  const raw = readOut?.storedTimestamp || readOut?.lastProcessedTimestamp;\n  if (typeof raw === 'string') {\n    storedTimestamp = raw.includes(' ') ? raw.replace(' ', 'T') : raw;\n  } else if (raw) {\n    storedTimestamp = raw;\n  }\n} catch (_) {}\nreturn [{ json: { cursor: null, accumulatedLeads: [], storedTimestamp } }];"
       },
       "id": "b275c2c6-b739-459c-be90-44bf986b3c3a",
       "name": "Initialize Cursor",
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince={{ $('Edit Fields').item.json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
+        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince={{ $json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -200,8 +200,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "key": "={{ $json.key }}",
-            "storedTimestamp": "={{ $json.storedTimestamp }}",
-            "row_number": 0
+            "storedTimestamp": "={{ $json.storedTimestamp }}"
           },
           "matchingColumns": [
             "key"
@@ -260,29 +259,6 @@
         }
       },
       "notes": "Updates the row where key=config with new storedTimestamp. Same sheet as Read Last Timestamp."
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "9001cbca-3efd-4dcb-b152-1bf9e62cd4de",
-              "name": "storedTimestamp",
-              "value": "={{ $json.storedTimestamp.replace(' ', 'T') }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        0,
-        80
-      ],
-      "id": "f76f9f46-6363-4edc-8ca3-57d3d0f23d50",
-      "name": "Edit Fields"
     }
   ],
   "pinData": {},
@@ -302,7 +278,7 @@
       "main": [
         [
           {
-            "node": "Edit Fields",
+            "node": "Initialize Cursor",
             "type": "main",
             "index": 0
           }
@@ -381,17 +357,6 @@
         [
           {
             "node": "Update Stored Timestamp",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields": {
-      "main": [
-        [
-          {
-            "node": "Initialize Cursor",
             "type": "main",
             "index": 0
           }

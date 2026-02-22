@@ -19,7 +19,7 @@ n8n workflow that fetches leads from the Hostfully API using a stored **last-pro
 ```
 Manual trigger
     → Read Last Timestamp (Google Sheets)
-    → Initialize Cursor (cursor, accumulatedLeads, storedTimestamp)
+    → Initialize Cursor (cursor, accumulatedLeads, storedTimestamp; normalizes timestamp format)
     → Fetch Hostfully Leads (updatedSince = storedTimestamp)
     → Accumulate Leads
     → Has More Pages?
@@ -45,7 +45,7 @@ Use one sheet to store the last-processed timestamp.
 **Read Last Timestamp** reads from this sheet (output field used in the workflow: `storedTimestamp`).  
 **Update Stored Timestamp** writes the new value back to the same sheet (row where `key` = `config`).
 
-If the sheet is empty or the read returns no rows, the workflow uses `1970-01-01T00:00:00.000Z` so the first run fetches all leads.
+If the sheet is empty or the read returns no rows, the workflow uses `1970-01-01T00:00:00.000Z` so the first run fetches all leads. **Initialize Cursor** normalizes the read value: if the sheet stores a timestamp with a space (e.g. `2026-02-19 00:00:00`), it is converted to ISO format with `T` (e.g. `2026-02-19T00:00:00`) for Hostfully API compatibility.
 
 ---
 
@@ -70,18 +70,18 @@ If the sheet is empty or the read returns no rows, the workflow uses `1970-01-01
 ### 3. Initialize Cursor
 
 - **Type:** Code  
-- **Role:** Sets initial state for pagination and passes through the stored timestamp.
+- **Role:** Sets initial state for pagination and passes through the stored timestamp. Normalizes the timestamp from the sheet: if it contains a space (e.g. Google Sheets date format), replaces it with `T` so the value is valid for the Hostfully API (`updatedSince`).
 - **Output:** One item:
   - `cursor`: `null`
   - `accumulatedLeads`: `[]`
-  - `storedTimestamp`: from **Read Last Timestamp** (or `1970-01-01T00:00:00.000Z` if missing/empty).
+  - `storedTimestamp`: from **Read Last Timestamp** (or `1970-01-01T00:00:00.000Z` if missing/empty), normalized for API use.
 
 ---
 
 ### 4. Fetch Hostfully Leads
 
 - **Type:** HTTP Request  
-- **Role:** Fetches a page of leads updated **after** `storedTimestamp`.
+- **Role:** Fetches a page of leads updated **after** `storedTimestamp`. Receives `storedTimestamp` and optional `cursor` from the previous node (Initialize Cursor on first run, or Has More Pages? / Accumulate Leads on loop).
 - **URL:**  
   `https://platform.hostfully.com/api/v3/leads?updatedSince={{ $json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}`
 - **Query:** `agencyUid` (unchanged).
@@ -135,7 +135,7 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 
 - **Type:** Google Sheets (Update)  
 - **Role:** Writes the new timestamp back to the sheet (row where `key` = `config`).
-- **Configure:** Same document/sheet as **Read Last Timestamp**, and column mapping for `key` and `storedTimestamp`.
+- **Configure:** Same document/sheet as **Read Last Timestamp**. Set **Column to match on** to `key` (value to match: `config`). Map columns `key` and `storedTimestamp` from the incoming item.
 
 ---
 
@@ -162,6 +162,7 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 
 ## Rules (summary)
 
+- **Timestamp format:** The value read from the sheet is normalized in **Initialize Cursor** (space → `T`) so it is valid for the Hostfully API. No separate Edit/Set node is used.
 - **New bookings:** Use `metadata.createdUtcDateTime` and keep only leads with `createdUtcDateTime > storedTimestamp`.
 - **Advancing timestamp:** Use `metadata.updatedUtcDateTime`; set stored timestamp to **max** of all accumulated leads’ `updatedUtcDateTime`.
 - **No assumption of sorted data:** Max is always computed from the full `accumulatedLeads` list.
