@@ -168,16 +168,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst leads = data.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nconst newStoredTimestamp = maxUpdated || data.storedTimestamp || '1970-01-01T00:00:00.000Z';\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
+        "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nconst newStoredTimestamp = maxUpdated || data?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
       },
-      "id": "1521b0a4-de0f-49d4-b704-92c6d1123391",
-      "name": "Compute Max Updated Timestamp",
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Compute Max After Loop",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1120,
-        176
-      ]
+      "position": [1400, 80],
+      "notes": "Runs only when Split In Batches (Done) fires. Reads from Accumulate Leads to avoid timestamp race."
     },
     {
       "parameters": {
@@ -284,7 +282,7 @@
       "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } }
     },
     {
-      "parameters": { "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { _noMatch: true } }];\nreturn items;" },
+      "parameters": { "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { _noMatch: true } }];\nreturn [items[0]];" },
       "id": "ensure-one-item-node",
       "name": "Ensure One Item",
       "type": "n8n-nodes-base.code",
@@ -316,6 +314,22 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [{ "id": "cleaning-job-needed", "leftValue": "={{ ($json.cleaningJobId ?? '').toString().trim() }}", "rightValue": "", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cleaning-job-needed-node",
+      "name": "Cleaning Job Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2352, -40],
+      "notes": "When reservation exists: TRUE = no cleaningJobId → create cleaning job; FALSE = has cleaning job → skip."
+    },
+    {
+      "parameters": {
         "operation": "append",
         "documentId": { "__rl": true, "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g", "mode": "list" },
         "sheetName": { "__rl": true, "value": "Reservations", "mode": "name" },
@@ -332,7 +346,7 @@
             "createdUtc": "={{ $json.metadata?.createdUtcDateTime }}",
             "cleaningStatus": "PENDING",
             "cleaningJobId": "",
-            "createdAtSystem": "={{ $now.toISOString() }}"
+            "createdAtSystem": "={{ $now.toISO() }}"
           }
         },
         "options": {}
@@ -464,11 +478,6 @@
             "node": "Output Leads Individually",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Compute Max Updated Timestamp",
-            "type": "main",
-            "index": 0
           }
         ],
         [
@@ -515,6 +524,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Compute Max After Loop",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -555,7 +571,7 @@
       "main": [
         [
           {
-            "node": "Split In Batches",
+            "node": "Cleaning Job Needed?",
             "type": "main",
             "index": 0
           }
@@ -563,6 +579,24 @@
         [
           {
             "node": "Create Reservation Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleaning Job Needed?": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Cleaning Job Data",
             "type": "main",
             "index": 0
           }
@@ -613,7 +647,7 @@
         ]
       ]
     },
-    "Compute Max Updated Timestamp": {
+    "Compute Max After Loop": {
       "main": [
         [
           {

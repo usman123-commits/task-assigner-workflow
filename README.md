@@ -30,13 +30,13 @@ Manual trigger
             → [per lead] Lookup Reservation (sheet: Reservations, by bookingUid)
             → Ensure One Item (0 rows → { _noMatch: true })
             → Merge (lead + lookup result)
-            → Reservation Exists?
-                → output 0 (exists, skip): loop back to Split In Batches
-                → output 1 (new): Create Reservation Record → Prepare Cleaning Job Data
+            → Reservation Exists? (condition: _noMatch === true)
+                → TRUE (output 1, no reservation): Create Reservation Record → Prepare Cleaning Job Data
                     → Create Cleaning Job Record → Update Reservation with Cleaning Job ID
                     → loop back to Split In Batches
-        → and → Compute Max Updated Timestamp
-            → Update Stored Timestamp (Google Sheets)
+                → FALSE (output 0, exists): loop back to Split In Batches
+            → when Split In Batches finishes (Done output): Compute Max After Loop
+                → Update Stored Timestamp (Google Sheets)
         → Yes (more pages): loop back to Fetch Hostfully Leads
 ```
 
@@ -58,6 +58,7 @@ Use **one spreadsheet** with **three areas** (tabs/sheets):
 - **Purpose:** One row per booking; used to avoid duplicate reservation/cleaning creation.
 - **Required column:** `bookingUid` (for lookup and update). Other columns used by the workflow: `propertyUid`, `guestName`, `checkIn`, `checkOut`, `adultCount`, `source`, `createdUtc`, `cleaningStatus`, `cleaningJobId`, `createdAtSystem`.
 - **Lookup Reservation** reads rows where `bookingUid` = lead’s `uid`. **Create Reservation Record** appends a new row. **Update Reservation with Cleaning Job ID** updates `cleaningJobId` for the row matching `bookingUid`.
+- **Assumption:** Reservations should have **at most one row per `bookingUid`**. If Lookup ever returns multiple rows (e.g. duplicates), **Ensure One Item** keeps only the first so the Merge (by position) stays valid (see **problems-and-solutions.md** §3 — Risk #3).
 
 ### 3. Tab “CleaningJobs”
 
@@ -120,7 +121,7 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 ### 6. Has More Pages?1
 
 - **Type:** IF  
-- **Role:** Same as before: no more pages → **Output Leads Individually** and **Compute Max Updated Timestamp**; more pages → loop back to **Fetch Hostfully Leads**.
+- **Role:** No more pages → **Output Leads Individually** only (reservation/cleaning loop and timestamp update run after **Split In Batches** finishes). More pages → loop back to **Fetch Hostfully Leads**.
 
 ---
 
@@ -164,7 +165,7 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 ### 11. Ensure One Item
 
 - **Type:** Code  
-- **Role:** If Lookup returned 0 items → output one item `{ _noMatch: true }`. Otherwise pass through the lookup result. Ensures **Merge** (combine by position) always has one item from the lookup side.
+- **Role:** Always outputs **exactly one item** so **Merge** (combine by position) is safe. If Lookup returned 0 items → output one item `{ _noMatch: true }`. If 1 or more items → output only the **first** row (`items[0]`). This hardens against duplicate or multi-row lookup results (e.g. duplicate `bookingUid` in Reservations); see problems-and-solutions.md §3.
 
 ---
 
@@ -179,9 +180,10 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 
 - **Type:** IF  
 - **Role:** Branch by whether the reservation already exists.
-- **Condition:** `$json._noMatch === true` (i.e. Lookup found no row).
-  - **FALSE (output 0):** reservation exists (row found; `_noMatch` not true) → connect back to **Split In Batches** (skip creation).
-  - **TRUE (output 1):** `_noMatch` is true (no row found) → new booking → **Create Reservation Record**.
+- **Condition:** `$json._noMatch === true` (i.e. Lookup found **no** row).
+- **Correct logic:** When `_noMatch === true` → **no** reservation was found → we must **create**. When `_noMatch` is not true → reservation **exists** → **skip**.
+  - **TRUE (output 1):** `_noMatch` is true → **no** reservation found → **Create Reservation Record** (then cleaning job, update).
+  - **FALSE (output 0):** reservation exists (row found) → connect back to **Split In Batches** (skip creation).
 
 ---
 
@@ -214,11 +216,11 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 
 ---
 
-### 18. Compute Max Updated Timestamp
+### 18. Compute Max After Loop
 
 - **Type:** Code  
-- **Role:** From **all** accumulated leads (not only filtered), compute the maximum `metadata.updatedUtcDateTime` so the next run can use it as `updatedSince`.
-- **Input:** The single item from **Has More Pages?** (no more pages) with `accumulatedLeads` and `storedTimestamp`.
+- **Role:** Runs only when **Split In Batches** has finished (Done output). From **all** accumulated leads (not only filtered), compute the maximum `metadata.updatedUtcDateTime` so the next run can use it as `updatedSince`. This avoids a timestamp race: the stored timestamp is updated only after all reservation/cleaning work for this run is done.
+- **Input:** Reads from `$('Accumulate Leads').last().json` (not from the incoming wire), so it has access to `accumulatedLeads` and `storedTimestamp` from the last pagination run.
 - **Output:** One item: `key: 'config'`, `storedTimestamp: maxUpdatedTime` (or previous `storedTimestamp` if no dates found). Does not assume API returns sorted data.
 
 ---
@@ -260,7 +262,7 @@ Only leads with `updatedUtcDateTime` after the stored timestamp are requested.
 - **New bookings:** Use `metadata.createdUtcDateTime`, `type === "BOOKING"`, and `status === "BOOKED"`; keep only leads that pass all three and `createdUtcDateTime > storedTimestamp`.
 - **Reservation/cleaning creation:** Runs only for leads that pass Filter New Bookings. Each lead is looked up in **Reservations** by `bookingUid` (= lead `uid`); if a row exists, the lead is skipped (no duplicate reservation or cleaning job). If no row exists, one reservation row and one cleaning job row are created and the reservation is updated with `cleaningJobId`.
 - **Idempotency:** Re-running the workflow does not create duplicate reservation or cleaning job rows for the same booking, because **Lookup Reservation** and **Reservation Exists?** skip creation when a row already exists.
-- **No new bookings:** If Filter New Bookings outputs 0 items, **Split In Batches** receives nothing and the reservation/cleaning chain does not run; **Compute Max Updated Timestamp** and **Update Stored Timestamp** still run from **Has More Pages?** and the stored timestamp is updated as usual.
+- **No new bookings:** If Filter New Bookings outputs 0 items, **Split In Batches** still emits its **Done** output once; **Compute Max After Loop** and **Update Stored Timestamp** run then, so the stored timestamp is updated as usual.
 - **Advancing timestamp:** Use `metadata.updatedUtcDateTime`; set stored timestamp to **max** of all accumulated leads’ `updatedUtcDateTime`.
 - **No assumption of sorted data:** Max is always computed from the full `accumulatedLeads` list.
 - **Pagination:** Unchanged; accumulation and `storedTimestamp` pass-through only.
