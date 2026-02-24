@@ -278,7 +278,7 @@
       "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } }
     },
     {
-      "parameters": { "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { _noMatch: true } }];\nreturn [items[0]];" },
+      "parameters": { "jsCode": "let items = [];\ntry { if ($input && typeof $input.all === 'function') items = $input.all(); } catch (_) {}\nif (!items.length) return [{ json: { _noMatch: true } }];\nreturn [items[0]];" },
       "id": "ensure-one-item-node",
       "name": "Ensure One Item",
       "type": "n8n-nodes-base.code",
@@ -286,12 +286,15 @@
       "position": [1792, -80]
     },
     {
-      "parameters": { "mode": "combine", "combinationMode": "mergeByPosition", "options": {} },
+      "parameters": {
+        "jsCode": "// Run after Ensure One Item; read lead from Split In Batches and lookup from Ensure One Item.\nconst lead = $('Split In Batches').last().json;\nconst lookup = $('Ensure One Item').last().json;\nreturn [{ json: { ...lead, ...lookup } }];"
+      },
       "id": "merge-lead-lookup-node",
-      "name": "Merge",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [2016, -120]
+      "name": "Merge Lead and Lookup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2016, -120],
+      "notes": "Replaces Merge node: combines current lead + lookup result so both are always defined."
     },
     {
       "parameters": {
@@ -518,11 +521,6 @@
         ],
         [
           {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Lookup Reservation",
             "type": "main",
             "index": 0
@@ -545,14 +543,14 @@
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Merge Lead and Lookup",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
     },
-    "Merge": {
+    "Merge Lead and Lookup": {
       "main": [
         [
           {
