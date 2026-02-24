@@ -359,7 +359,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json;\nconst bookingUid = j?.uid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst cleaningDate = j?.checkOutLocalDateTime || '';\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: j?.propertyUid ?? '', cleaningDate, cleaningTime: j?.checkOutLocalDateTime ?? '', status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
+        "jsCode": "const j = $input.first().json;\nconst bookingUid = j?.uid || j?.bookingUid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst dateTime = j?.checkOutLocalDateTime || j?.checkOut || '';\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: j?.propertyUid ?? '', cleaningDate: dateTime, cleaningTime: dateTime, status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
       },
       "id": "prepare-cleaning-job-node",
       "name": "Prepare Cleaning Job Data",
