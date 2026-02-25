@@ -2,18 +2,8 @@
   "name": "Hostfully to Operto Reservation Cleaning Sync",
   "nodes": [
     {
-      "parameters": {},
-      "id": "8bdf64dc-7cef-4013-9c97-e8bc307aa334",
-      "name": "When clicking 'Execute workflow'",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -448,
-        80
-      ]
-    },
-    {
       "parameters": {
+        "operation": "update",
         "documentId": {
           "__rl": true,
           "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
@@ -23,85 +13,485 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "timeStamps",
+          "value": "Reservations",
           "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "cleaningJobId": "={{ $json.cleaningJobId }}",
+            "row_number": 0
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ],
+          "schema": [
+            {
+              "id": "bookingUid",
+              "displayName": "bookingUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "propertyUid",
+              "displayName": "propertyUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "guestName",
+              "displayName": "guestName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "checkIn",
+              "displayName": "checkIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "checkOut",
+              "displayName": "checkOut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "adultCount",
+              "displayName": "adultCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "createdUtc",
+              "displayName": "createdUtc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleaningStatus",
+              "displayName": "cleaningStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleaningJobId",
+              "displayName": "cleaningJobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdAtSystem",
+              "displayName": "createdAtSystem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         },
         "options": {}
       },
-      "id": "73da9d8a-a7f5-46d3-a368-3e319c8ae30c",
-      "name": "Read Last Timestamp",
+      "id": "ffea42bf-bac0-4350-b089-533d38ac8aec",
+      "name": "Update Reservation with Cleaning Job ID",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -224,
-        80
+        832,
+        336
       ],
-      "notesInFlow": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "6WzYJIrG1pOhcusY",
           "name": "Google Sheets account"
         }
-      },
-      "notes": "Configure: Document (spreadsheet), Sheet. Sheet must have columns 'key' (A) and 'storedTimestamp' (B). Row 2: key=config, storedTimestamp=<ISO date>. Output field: storedTimestamp."
+      }
     },
     {
       "parameters": {
-        "jsCode": "let storedTimestamp = '1970-01-01T00:00:00.000Z';\ntry {\n  const readOut = $('Read Last Timestamp').first().json;\n  const raw = readOut?.storedTimestamp || readOut?.lastProcessedTimestamp;\n  if (typeof raw === 'string') {\n    storedTimestamp = raw.includes(' ') ? raw.replace(' ', 'T') : raw;\n  } else if (raw) {\n    storedTimestamp = raw;\n  }\n} catch (_) {}\nreturn [{ json: { cursor: null, accumulatedLeads: [], storedTimestamp } }];"
-      },
-      "id": "b275c2c6-b739-459c-be90-44bf986b3c3a",
-      "name": "Initialize Cursor",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        224,
-        80
-      ]
-    },
-    {
-      "parameters": {
-        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince={{ $json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "agencyUid",
-              "value": "35842d2f-b5c1-46fa-a33d-a12756b42ed8"
-            }
-          ]
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
         },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cleaningJobId": "={{ $json.cleaningJobId }}",
+            "bookingUid": "={{ $json.bookingUid }}",
+            "propertyUid": "={{ $json.propertyUid }}",
+            "cleaningDate": "={{ $json.cleaningDate }}",
+            "cleaningTime": "={{ $json.cleaningTime }}",
+            "status": "={{ $json.status }}",
+            "assignedCleaner": "={{ $json.assignedCleaner }}",
+            "clockIn": "={{ $json.clockIn }}",
+            "clockOut": "={{ $json.clockOut }}",
+            "workedHours": "={{ $json.workedHours }}",
+            "createdAtSystem": "={{ $json.createdAtSystem }}"
+          },
+          "matchingColumns": [],
+          "schema": [
             {
-              "name": "X-HOSTFULLY-APIKEY",
-              "value": "t0JOVEKKJhZfkvv1"
+              "id": "cleaningJobId",
+              "displayName": "cleaningJobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bookingUid",
+              "displayName": "bookingUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "propertyUid",
+              "displayName": "propertyUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleaningDate",
+              "displayName": "cleaningDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleaningTime",
+              "displayName": "cleaningTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assignedCleaner",
+              "displayName": "assignedCleaner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clockIn",
+              "displayName": "clockIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clockOut",
+              "displayName": "clockOut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workedHours",
+              "displayName": "workedHours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdAtSystem",
+              "displayName": "createdAtSystem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
-          ]
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         },
         "options": {}
       },
-      "id": "77bceffc-0288-4762-b429-1c6366ba552a",
-      "name": "Fetch Hostfully Leads",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "id": "6a4bc2f0-0be0-407b-8da7-5e8a19b1fab1",
+      "name": "Create Cleaning Job Record",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
       "position": [
-        448,
-        80
+        608,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst bookingUid = j?.uid || j?.bookingUid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst dateTime = j?.checkOutLocalDateTime || j?.checkOut || '';\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: j?.propertyUid ?? '', cleaningDate: dateTime, cleaningTime: dateTime, status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
+      },
+      "id": "1480f9f3-92a0-42b6-9b4f-52fc27b93a31",
+      "name": "Prepare Cleaning Job Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        160
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Use previous run of Accumulate Leads when runIndex > 0, else Initialize Cursor\nconst isFirstRun = typeof $runIndex === 'undefined' || $runIndex === 0;\nconst previousData = isFirstRun\n  ? $('Initialize Cursor').first().json\n  : $('Accumulate Leads').first(0, $runIndex - 1).json;\n\nconst response = $('Fetch Hostfully Leads').all()[0].json;\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging?._nextCursor ?? null;\nconst storedTimestamp = previousData.storedTimestamp;\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...(previousData.accumulatedLeads || []), ...newLeads],\n    storedTimestamp: storedTimestamp\n  }\n}];"
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.uid }}",
+            "propertyUid": "={{ $json.propertyUid }}",
+            "guestName": "={{ ($json.guestInformation?.firstName || '') + ' ' + ($json.guestInformation?.lastName || '') }}",
+            "checkIn": "={{ $json.checkInLocalDateTime }}",
+            "checkOut": "={{ $json.checkOutLocalDateTime }}",
+            "adultCount": "={{ $json.guestInformation?.adultCount ?? '' }}",
+            "source": "={{ $json.channel }}",
+            "createdUtc": "={{ $json.metadata?.createdUtcDateTime }}",
+            "cleaningStatus": "PENDING",
+            "createdAtSystem": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "bookingUid",
+              "displayName": "bookingUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "propertyUid",
+              "displayName": "propertyUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guestName",
+              "displayName": "guestName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "checkIn",
+              "displayName": "checkIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "checkOut",
+              "displayName": "checkOut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "adultCount",
+              "displayName": "adultCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdUtc",
+              "displayName": "createdUtc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleaningStatus",
+              "displayName": "cleaningStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleaningJobId",
+              "displayName": "cleaningJobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdAtSystem",
+              "displayName": "createdAtSystem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "childrenCount",
+              "displayName": "childrenCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
       },
-      "id": "3493a540-ee10-482a-bec5-d2b0139494d7",
-      "name": "Accumulate Leads",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "16a817f9-d3b6-4aa6-8a90-468694a424b9",
+      "name": "Create Reservation Record",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
       "position": [
-        672,
-        16
-      ]
+        160,
+        64
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
@@ -114,13 +504,12 @@
           },
           "conditions": [
             {
-              "id": "d43ff919-7496-4ee8-b3ec-dc0cb340f6e0",
-              "leftValue": "={{ $json.cursor }}",
-              "rightValue": "null",
+              "id": "cleaning-job-needed",
+              "leftValue": "={{ ($json.cleaningJobId ?? '').toString().trim() }}",
+              "rightValue": "",
               "operator": {
                 "type": "string",
-                "operation": "empty",
-                "singleValue": true
+                "operation": "equals"
               }
             }
           ],
@@ -128,52 +517,129 @@
         },
         "options": {}
       },
-      "id": "119ec0d1-129c-44fe-a0db-b29a36915c6e",
-      "name": "Has More Pages?1",
+      "id": "279b952a-b35e-4284-b6da-20200551109a",
+      "name": "Cleaning Job Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        896,
-        80
-      ]
+        160,
+        256
+      ],
+      "notes": "When reservation exists: TRUE = no cleaningJobId → create cleaning job; FALSE = has cleaning job → skip."
     },
     {
       "parameters": {
-        "fieldToSplitOut": "accumulatedLeads",
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "if-reservation-exists",
+              "leftValue": "={{ $json._noMatch }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
         "options": {}
       },
-      "id": "f9dd6b0d-98a1-445b-841e-ae2e545847c8",
-      "name": "Output Leads Individually",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
+      "id": "9bef42a4-56c7-4507-832e-b7d18a74c714",
+      "name": "Reservation Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
       "position": [
-        1120,
-        -16
+        -64,
+        160
       ]
     },
     {
       "parameters": {
-        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created > storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
+        "jsCode": "// Run after Ensure One Item; read lead from Split In Batches and lookup from Ensure One Item.\nconst lead = $('Split In Batches').last().json;\nconst lookup = $('Ensure One Item').last().json;\nreturn [{ json: { ...lead, ...lookup } }];"
       },
-      "id": "f9926d0b-309d-4ea1-9cbd-8490ec388c67",
-      "name": "Filter New Bookings",
+      "id": "4a1dc900-a437-41d8-b4c8-84d8c7c9cedb",
+      "name": "Merge Lead and Lookup",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
-        -16
-      ]
+        -288,
+        160
+      ],
+      "notes": "Replaces Merge node: combines current lead + lookup result so both are always defined."
     },
     {
       "parameters": {
-        "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nconst newStoredTimestamp = maxUpdated || data?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
+        "jsCode": "let items = [];\ntry { if ($input && typeof $input.all === 'function') items = $input.all(); } catch (_) {}\nif (!items.length) return [{ json: { _noMatch: true } }];\nconst first = items[0].json || {};\n// When Lookup has \"Always output data\", 0 rows still send one item - treat as no match if no real reservation data\nconst hasRealMatch = first.bookingUid !== undefined && first.bookingUid !== null && String(first.bookingUid).trim() !== '';\nif (!hasRealMatch) return [{ json: { _noMatch: true } }];\nreturn [{ json: { ...first, _noMatch: false } }];"
       },
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "Compute Max After Loop",
+      "id": "2b3d1e10-7926-499a-94bd-0eb168a10a86",
+      "name": "Ensure One Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 80],
-      "notes": "Runs only when Split In Batches (Done) fires. Reads from Accumulate Leads to avoid timestamp race."
+      "position": [
+        -512,
+        160
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.uid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8d9ec5cf-ab81-4604-bd57-bbd05ad0c522",
+      "name": "Lookup Reservation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -736,
+        160
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1029c38c-8e64-4017-b925-333e8e69c611",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -960,
+        432
+      ]
     },
     {
       "parameters": {
@@ -237,13 +703,13 @@
         },
         "options": {}
       },
-      "id": "7a571f38-a034-48f4-a02b-6832473678dd",
+      "id": "5cfc65bd-f53e-4e78-8295-94f0e0b6de95",
       "name": "Update Stored Timestamp",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        1344,
-        176
+        -512,
+        352
       ],
       "notesInFlow": true,
       "credentials": {
@@ -255,251 +721,296 @@
       "notes": "Updates the row where key=config with new storedTimestamp. Same sheet as Read Last Timestamp."
     },
     {
-      "parameters": { "batchSize": 1, "options": {} },
-      "id": "split-in-batches-reservations",
-      "name": "Split In Batches",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [1568, -16]
+      "parameters": {
+        "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nconst newStoredTimestamp = maxUpdated || data?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
+      },
+      "id": "e311c5cf-1eb7-42f5-bd91-9591126f2cba",
+      "name": "Compute Max After Loop",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        352
+      ],
+      "notes": "Runs only when Split In Batches (Done) fires. Reads from Accumulate Leads to avoid timestamp race."
     },
     {
       "parameters": {
-        "operation": "read",
-        "documentId": { "__rl": true, "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g", "mode": "list" },
-        "sheetName": { "__rl": true, "value": "Reservations", "mode": "name" },
-        "filtersUI": { "values": [{ "lookupColumn": "bookingUid", "lookupValue": "={{ $json.uid }}" }] },
+        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created > storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
+      },
+      "id": "95fd811c-087c-4f2b-94db-b41befe102af",
+      "name": "Filter New Bookings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "accumulatedLeads",
         "options": {}
       },
-      "id": "lookup-reservation-node",
-      "name": "Lookup Reservation",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.4,
-      "position": [1792, -160],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } }
-    },
-    {
-      "parameters": { "jsCode": "let items = [];\ntry { if ($input && typeof $input.all === 'function') items = $input.all(); } catch (_) {}\nif (!items.length) return [{ json: { _noMatch: true } }];\nreturn [items[0]];" },
-      "id": "ensure-one-item-node",
-      "name": "Ensure One Item",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1792, -80]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Run after Ensure One Item; read lead from Split In Batches and lookup from Ensure One Item.\nconst lead = $('Split In Batches').last().json;\nconst lookup = $('Ensure One Item').last().json;\nreturn [{ json: { ...lead, ...lookup } }];"
-      },
-      "id": "merge-lead-lookup-node",
-      "name": "Merge Lead and Lookup",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2016, -120],
-      "notes": "Replaces Merge node: combines current lead + lookup result so both are always defined."
+      "id": "9f4a4ffa-4e9a-4be6-a18e-6f6d182e2b32",
+      "name": "Output Leads Individually",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        432
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
-          "conditions": [{ "id": "if-reservation-exists", "leftValue": "={{ $json._noMatch }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "d43ff919-7496-4ee8-b3ec-dc0cb340f6e0",
+              "leftValue": "={{ $json.cursor }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "if-reservation-exists-node",
-      "name": "Reservation Exists?",
+      "id": "8de45384-4da1-4827-a2a5-849a7dcf1a93",
+      "name": "Has More Pages?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2240, -120]
+      "position": [
+        -1632,
+        432
+      ]
     },
     {
       "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
-          "conditions": [{ "id": "cleaning-job-needed", "leftValue": "={{ ($json.cleaningJobId ?? '').toString().trim() }}", "rightValue": "", "operator": { "type": "string", "operation": "equals" } }],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "// Use previous run of Accumulate Leads when runIndex > 0, else Initialize Cursor\nconst isFirstRun = typeof $runIndex === 'undefined' || $runIndex === 0;\nconst previousData = isFirstRun\n  ? $('Initialize Cursor').first().json\n  : $('Accumulate Leads').first(0, $runIndex - 1).json;\n\nconst response = $('Fetch Hostfully Leads').all()[0].json;\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging?._nextCursor ?? null;\nconst storedTimestamp = previousData.storedTimestamp;\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...(previousData.accumulatedLeads || []), ...newLeads],\n    storedTimestamp: storedTimestamp\n  }\n}];"
       },
-      "id": "cleaning-job-needed-node",
-      "name": "Cleaning Job Needed?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [2352, -40],
-      "notes": "When reservation exists: TRUE = no cleaningJobId → create cleaning job; FALSE = has cleaning job → skip."
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": { "__rl": true, "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g", "mode": "list" },
-        "sheetName": { "__rl": true, "value": "Reservations", "mode": "name" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "bookingUid": "={{ $json.uid }}",
-            "propertyUid": "={{ $json.propertyUid }}",
-            "guestName": "={{ ($json.guestInformation?.firstName || '') + ' ' + ($json.guestInformation?.lastName || '') }}",
-            "checkIn": "={{ $json.checkInLocalDateTime }}",
-            "checkOut": "={{ $json.checkOutLocalDateTime }}",
-            "adultCount": "={{ $json.guestInformation?.adultCount ?? '' }}",
-            "source": "={{ $json.channel }}",
-            "createdUtc": "={{ $json.metadata?.createdUtcDateTime }}",
-            "cleaningStatus": "PENDING",
-            "cleaningJobId": "",
-            "createdAtSystem": "={{ $now.toISO() }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "create-reservation-record-node",
-      "name": "Create Reservation Record",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.4,
-      "position": [2464, -200],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } }
-    },
-    {
-      "parameters": {
-        "jsCode": "const j = $input.first().json;\nconst bookingUid = j?.uid || j?.bookingUid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst dateTime = j?.checkOutLocalDateTime || j?.checkOut || '';\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: j?.propertyUid ?? '', cleaningDate: dateTime, cleaningTime: dateTime, status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
-      },
-      "id": "prepare-cleaning-job-node",
-      "name": "Prepare Cleaning Job Data",
+      "id": "44c7cdae-9aa3-4a4c-8c54-e746406f2897",
+      "name": "Accumulate Leads",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2688, -200]
+      "position": [
+        -1856,
+        352
+      ]
     },
     {
       "parameters": {
-        "operation": "append",
-        "documentId": { "__rl": true, "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g", "mode": "list" },
-        "sheetName": { "__rl": true, "value": "CleaningJobs", "mode": "name" },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "cleaningJobId": "={{ $json.cleaningJobId }}",
-            "bookingUid": "={{ $json.bookingUid }}",
-            "propertyUid": "={{ $json.propertyUid }}",
-            "cleaningDate": "={{ $json.cleaningDate }}",
-            "cleaningTime": "={{ $json.cleaningTime }}",
-            "status": "={{ $json.status }}",
-            "assignedCleaner": "={{ $json.assignedCleaner }}",
-            "clockIn": "={{ $json.clockIn }}",
-            "clockOut": "={{ $json.clockOut }}",
-            "workedHours": "={{ $json.workedHours }}",
-            "createdAtSystem": "={{ $json.createdAtSystem }}"
-          }
+        "url": "=https://platform.hostfully.com/api/v3/leads?updatedSince={{ $json.storedTimestamp }}{{ $json.cursor ? '&_cursor=' + $json.cursor : '' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencyUid",
+              "value": "35842d2f-b5c1-46fa-a33d-a12756b42ed8"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-HOSTFULLY-APIKEY",
+              "value": "t0JOVEKKJhZfkvv1"
+            }
+          ]
         },
         "options": {}
       },
-      "id": "create-cleaning-job-node",
-      "name": "Create Cleaning Job Record",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.4,
-      "position": [2912, -200],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } }
+      "id": "ff137c13-cdba-4b43-bf8f-d3242ea610b0",
+      "name": "Fetch Hostfully Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -2080,
+        432
+      ]
     },
     {
       "parameters": {
-        "operation": "update",
-        "documentId": { "__rl": true, "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g", "mode": "list" },
-        "sheetName": { "__rl": true, "value": "Reservations", "mode": "name" },
-        "columns": { "mappingMode": "defineBelow", "value": { "bookingUid": "={{ $json.bookingUid }}", "cleaningJobId": "={{ $json.cleaningJobId }}" }, "matchingColumns": ["bookingUid"] },
+        "jsCode": "let storedTimestamp = '1970-01-01T00:00:00.000Z';\ntry {\n  const readOut = $('Read Last Timestamp').first().json;\n  const raw = readOut?.storedTimestamp || readOut?.lastProcessedTimestamp;\n  if (typeof raw === 'string') {\n    storedTimestamp = raw.includes(' ') ? raw.replace(' ', 'T') : raw;\n  } else if (raw) {\n    storedTimestamp = raw;\n  }\n} catch (_) {}\nreturn [{ json: { cursor: null, accumulatedLeads: [], storedTimestamp } }];"
+      },
+      "id": "7abcfaac-056e-43df-9bde-7fc40b44f7ac",
+      "name": "Initialize Cursor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "timeStamps",
+          "mode": "name"
+        },
         "options": {}
       },
-      "id": "update-reservation-cleaning-id-node",
-      "name": "Update Reservation with Cleaning Job ID",
+      "id": "1cab9b74-afd8-4641-a805-83fe819aa16b",
+      "name": "Read Last Timestamp",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [3136, -200],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } }
+      "position": [
+        -2528,
+        432
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Configure: Document (spreadsheet), Sheet. Sheet must have columns 'key' (A) and 'storedTimestamp' (B). Row 2: key=config, storedTimestamp=<ISO date>. Output field: storedTimestamp."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2752,
+        432
+      ],
+      "id": "8d3c8296-5019-4fde-916d-ec6454038dcc",
+      "name": "Schedule Trigger"
     }
   ],
   "pinData": {},
   "connections": {
-    "When clicking 'Execute workflow'": {
+    "Create Cleaning Job Record": {
       "main": [
         [
           {
-            "node": "Read Last Timestamp",
+            "node": "Update Reservation with Cleaning Job ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read Last Timestamp": {
+    "Prepare Cleaning Job Data": {
       "main": [
         [
           {
-            "node": "Initialize Cursor",
+            "node": "Create Cleaning Job Record",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize Cursor": {
+    "Create Reservation Record": {
       "main": [
         [
           {
-            "node": "Fetch Hostfully Leads",
+            "node": "Prepare Cleaning Job Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Hostfully Leads": {
+    "Cleaning Job Needed?": {
       "main": [
         [
           {
-            "node": "Accumulate Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Accumulate Leads": {
-      "main": [
-        [
-          {
-            "node": "Has More Pages?1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has More Pages?1": {
-      "main": [
-        [
-          {
-            "node": "Output Leads Individually",
+            "node": "Prepare Cleaning Job Data",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Fetch Hostfully Leads",
+            "node": "Split In Batches",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Output Leads Individually": {
+    "Reservation Exists?": {
       "main": [
         [
           {
-            "node": "Filter New Bookings",
+            "node": "Cleaning Job Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Reservation Record",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter New Bookings": {
+    "Merge Lead and Lookup": {
+      "main": [
+        [
+          {
+            "node": "Reservation Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure One Item": {
+      "main": [
+        [
+          {
+            "node": "Merge Lead and Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Reservation": {
+      "main": [
+        [
+          {
+            "node": "Ensure One Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Reservation with Cleaning Job ID": {
       "main": [
         [
           {
@@ -528,124 +1039,106 @@
         ]
       ]
     },
-    "Lookup Reservation": {
-      "main": [
-        [
-          {
-            "node": "Ensure One Item",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ensure One Item": {
-      "main": [
-        [
-          {
-            "node": "Merge Lead and Lookup",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge Lead and Lookup": {
-      "main": [
-        [
-          {
-            "node": "Reservation Exists?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Reservation Exists?": {
-      "main": [
-        [
-          {
-            "node": "Cleaning Job Needed?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Create Reservation Record",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Cleaning Job Needed?": {
-      "main": [
-        [
-          {
-            "node": "Split In Batches",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Prepare Cleaning Job Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Create Reservation Record": {
-      "main": [
-        [
-          {
-            "node": "Prepare Cleaning Job Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Cleaning Job Data": {
-      "main": [
-        [
-          {
-            "node": "Create Cleaning Job Record",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Create Cleaning Job Record": {
-      "main": [
-        [
-          {
-            "node": "Update Reservation with Cleaning Job ID",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Reservation with Cleaning Job ID": {
-      "main": [
-        [
-          {
-            "node": "Split In Batches",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Compute Max After Loop": {
       "main": [
         [
           {
             "node": "Update Stored Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter New Bookings": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Leads Individually": {
+      "main": [
+        [
+          {
+            "node": "Filter New Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has More Pages?1": {
+      "main": [
+        [
+          {
+            "node": "Output Leads Individually",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Hostfully Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accumulate Leads": {
+      "main": [
+        [
+          {
+            "node": "Has More Pages?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Hostfully Leads": {
+      "main": [
+        [
+          {
+            "node": "Accumulate Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Cursor": {
+      "main": [
+        [
+          {
+            "node": "Fetch Hostfully Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Last Timestamp": {
+      "main": [
+        [
+          {
+            "node": "Initialize Cursor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Last Timestamp",
             "type": "main",
             "index": 0
           }
@@ -659,11 +1152,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "58143bf8-b366-40ba-87c7-49d16b9ad468",
+  "versionId": "67eb58c0-99b2-44e6-be61-cb6165ab00e0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
   },
-  "id": "phsZKCc3UwqoJE3c",
+  "id": "lK3a0UuuNq39FYlA",
   "tags": []
 }
