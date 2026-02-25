@@ -736,7 +736,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created > storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
+        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created >= storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
       },
       "id": "95fd811c-087c-4f2b-94db-b41befe102af",
       "name": "Filter New Bookings",
