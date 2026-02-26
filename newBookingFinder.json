@@ -20,8 +20,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "bookingUid": "={{ $json.bookingUid }}",
-            "cleaningJobId": "={{ $json.cleaningJobId }}",
-            "row_number": 0
+            "cleaningJobId": "={{ $json.cleaningJobId }}"
           },
           "matchingColumns": [
             "bookingUid"
@@ -144,7 +143,7 @@
               "type": "number",
               "canBeUsedToMatch": true,
               "readOnly": true,
-              "removed": false
+              "removed": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -158,7 +157,7 @@
       "typeVersion": 4.4,
       "position": [
         832,
-        336
+        328
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -359,7 +358,8 @@
             "source": "={{ $json.channel }}",
             "createdUtc": "={{ $json.metadata?.createdUtcDateTime }}",
             "cleaningStatus": "PENDING",
-            "createdAtSystem": "={{ $now.toISO() }}"
+            "createdAtSystem": "={{ $now.toISO() }}",
+            "childrenCount": "={{ $json.guestInformation?.childrenCount ?? '' }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -470,7 +470,7 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true,
-              "removed": true
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -638,7 +638,7 @@
       "typeVersion": 3,
       "position": [
         -960,
-        432
+        424
       ]
     },
     {
@@ -722,7 +722,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nconst newStoredTimestamp = maxUpdated || data?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
+        "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nlet newStoredTimestamp = maxUpdated || data?.storedTimestamp || '1970-01-01T00:00:00.000Z';\n// Advance by 1 ms so the next run never sees \"equal\" timestamp (avoids skipping a booking forever)\nif (maxUpdated) {\n  const d = new Date(newStoredTimestamp);\n  d.setUTCMilliseconds(d.getUTCMilliseconds() + 1);\n  newStoredTimestamp = d.toISOString();\n}\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
       },
       "id": "e311c5cf-1eb7-42f5-bd91-9591126f2cba",
       "name": "Compute Max After Loop",
@@ -736,7 +736,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created >= storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
+        "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created > storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
       },
       "id": "95fd811c-087c-4f2b-94db-b41befe102af",
       "name": "Filter New Bookings",
@@ -744,7 +744,7 @@
       "typeVersion": 2,
       "position": [
         -1184,
-        432
+        424
       ]
     },
     {
@@ -758,7 +758,7 @@
       "typeVersion": 1,
       "position": [
         -1408,
-        432
+        424
       ]
     },
     {
@@ -792,7 +792,7 @@
       "typeVersion": 2,
       "position": [
         -1632,
-        432
+        424
       ]
     },
     {
@@ -837,7 +837,7 @@
       "typeVersion": 4,
       "position": [
         -2080,
-        432
+        424
       ]
     },
     {
@@ -850,7 +850,7 @@
       "typeVersion": 2,
       "position": [
         -2304,
-        432
+        424
       ]
     },
     {
@@ -875,7 +875,7 @@
       "typeVersion": 4.4,
       "position": [
         -2528,
-        432
+        424
       ],
       "notesInFlow": true,
       "credentials": {
@@ -900,7 +900,7 @@
       "typeVersion": 1.3,
       "position": [
         -2752,
-        432
+        424
       ],
       "id": "8d3c8296-5019-4fde-916d-ec6454038dcc",
       "name": "Schedule Trigger"
@@ -1152,7 +1152,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "67eb58c0-99b2-44e6-be61-cb6165ab00e0",
+  "versionId": "135a0f85-628f-48e5-bb76-2d6bfb107655",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
