@@ -1,254 +1,313 @@
-🧱 PHASE 1 — Booking → Internal Job Creation
+# 🧱 PHASE 1 — Booking → Internal Job Creation (Completed)
 
 We do NOT touch cleaners, payroll, maintenance yet.
+Google Sheets is now the official system of record.
+There are only 5 property UIDs discovered yet:
+
+- `29ce8c43-0368-4934-bce2-e5f7c54d2091`
+- `080afa02-ef01-4038-9528-3c10f88a7645`
+- `33f964cf-2531-47f8-8133-fd501e9f6814`
+- `6301ad7e-6d32-426a-8aef-daa74978f911`
+- `2e49d012-dcf1-43ef-8ce3-566f2364352d`
 
 First we define:
-
 What should happen the moment a new confirmed booking is detected?
 
-Step 1.1 – Booking Trigger (Already Done)
+## Step 1.1 – Booking Trigger (Already Done)
 
 Your workflow correctly detects:
 
-type === "BOOKING"
+- `type === "BOOKING"`
+- `status === "BOOKED"`
+- `createdUtcDateTime > storedTimestamp`
 
-status === "BOOKED"
+This is your ingestion entry point.
 
-createdUtcDateTime > storedTimestamp
+**System rule:**
+Booking workflow must remain isolated and stable.
 
-Good. That is your system entry point.
+## Step 1.2 – Create Internal "Reservation Record"
 
-Step 1.2 – Create Internal “Reservation Record”
+Instead of external tools, we now:
+Create a structured record in Google Sheets (reservation tab).
 
-Instead of sending to Operto, we now:
+**Minimum fields stored:**
 
-Create a structured internal record.
+- bookingUid
+- propertyUid
+- checkIn
+- checkOut
+- guestName
+- adultCount
+- source
+- createdUtcDateTime
+- cleaningStatus = "PENDING"
+- maintenanceStatus = "NONE"
+- payrollStatus = "NOT_STARTED"
 
-This could be stored in:
+This is the control table.
+No cleaner logic here.
 
-Google Sheets (temporary)
+## Step 1.3 – Derive Cleaning Job
 
-Airtable
+Immediately after reservation record creation:
+Create entry in cleaning_job tab.
 
-Supabase
+**Fields:**
 
-Or your own DB later
-
-Minimum fields to store:
-
-bookingUid
-
-propertyUid
-
-checkIn
-
-checkOut
-
-guestName
-
-adultCount
-
-source (Airbnb, VRBO, etc.)
-
-createdUtcDateTime
-
-cleaningStatus = "PENDING"
-
-maintenanceStatus = "NONE"
-
-payrollStatus = "NOT_STARTED"
-
-This becomes your internal control table.
-
-We do this before anything else.
-
-Step 1.3 – Derive Cleaning Job
-
-Now we calculate:
-
-Cleaning date = checkOut date
-
-Add logic:
-
-Cleaning scheduled at checkout time
-
-Or fixed cleaning window (ex: 11:00 AM)
-
-Create cleaning task record:
-
-bookingUid
-
-propertyUid
-
-cleaningDate
-
-status = "ASSIGNED"
-
-cleanerId (optional for now)
+- bookingUid
+- propertyUid
+- cleaningDate = checkOut
+- cleaningStartTime = 11:00 AM (fixed window)
+- cleaningDuration = 3 hours (configurable)
+- cleaningStatus = "PENDING"
+- cleanerId = empty
+- assignedAt = empty
+- calendarEventId = empty
+- clockInTime = empty
+- clockOutTime = empty
 
 Still internal only.
+No calendar.
+No email.
+No payroll.
 
-No payroll yet.
+---
 
-🧹 PHASE 2 — Cleaner Assignment Layer
+# 🧹 PHASE 2 — Cleaner Assignment + Calendar Dispatch (New Architecture)
 
-Now we improve gradually.
+This phase is a separate workflow.
+Calendar is visualization only.
+Google Sheets remains source of truth.
 
-Step 2.1 – Assign Cleaner Automatically
+## Step 2.1 – Detect Unassigned Cleaning Jobs
 
-Rules could be:
+**Trigger when:**
 
-Based on property
+- cleaningStatus = "PENDING"
+- AND cleanerId is empty
 
-Based on weekday
+System polls cleaning_job tab.
 
-Based on cleaner availability
+## Step 2.2 – Assign Cleaner (Rule-Based)
 
-Round-robin
+**Initial logic:**
+propertyUid → cleanerId mapping
 
-For now keep it simple:
+**Future upgrade options:**
 
-Map propertyUid → cleanerId
+- Weekday logic
+- Cleaner workload balancing
+- Availability check
+- Round-robin
 
-Store:
+For now: static mapping.
 
-cleanerId
+**Update cleaning_job:**
 
-assignedAt timestamp
+- cleanerId
+- assignedAt = current UTC timestamp
+- cleaningStatus = "ASSIGNED"
 
-Step 2.2 – Notify Cleaner
+## Step 2.3 – Create Calendar Events (One-Way Sync)
 
-Send:
+Create two events:
 
-SMS (via GHL)
+- Master Admin Calendar (your account)
+- Cleaner-specific calendar (owned by you, shared as view-only)
 
-Email
+**Event title format:**
+Cleaning – [Property Name] – [Guest Name]
 
-WhatsApp
+**Event description:**
 
-Include:
+- Property
+- Full Address
+- Guest Count
+- Booking Reference ID
+- Internal Notes
 
-Property
+Start: cleaningStartTime
+End: cleaningStartTime + duration
 
-Date
+**Store:**
+calendarEventId (from cleaner calendar)
 
-Check-out time
+**Important:**
+If calendarEventId exists → DO NOT recreate event.
+Calendar is not editable by cleaners.
 
-Guest count
+## Step 2.4 – Send Assignment Email (Gmail Node)
+
+Send via Gmail.
+
+**Subject:**
+New Cleaning Assigned – [Property Name]
+
+**Body includes:**
+
+- Property Name
+- Full Address
+- Date
+- Time
+- Guest Count
+- Booking Reference
+- Calendar Event Link
+
+This acts as:
+
+- Operational alert
+- Assignment proof
+- Legal timestamp record
+
+Optional future upgrade:
+Add SMS redundancy.
 
 Now cleaning becomes operational.
 
-📍 PHASE 3 — Clock In / Clock Out (GPS)
+---
 
-Now we build time tracking.
+# 📋 PHASE 3 — Cleaner Interaction Layer (Google Forms + GPS)
 
-Cleaner workflow:
+We do NOT use calendar for interaction.
+We use Google Forms.
 
-Cleaner clicks “Start Cleaning”
+## Step 3.1 – Start Cleaning (Clock In)
 
-System captures:
+Cleaner opens Google Form link.
 
-Timestamp
+**Form collects:**
 
-GPS location
+- Cleaner ID (pre-filled)
+- Booking UID (hidden/pre-filled)
+- Start Cleaning button
 
-Validate:
+**System captures:**
 
-Within X meters of property
+- Timestamp
+- GPS location (via form or web app)
 
-Store clockInTime
+**Validation:**
+Location must be within X meters of property address.
 
-When done:
+**Store:**
 
-Click “Finish Cleaning”
+- clockInTime
+- clockInLat
+- clockInLng
 
-Capture:
+**Update:**
+cleaningStatus = "IN_PROGRESS"
 
-Timestamp
+## Step 3.2 – Finish Cleaning (Clock Out)
 
-GPS
+Cleaner submits Finish Form.
 
-Store clockOutTime
+**System captures:**
 
-Now you have:
+- Timestamp
+- GPS
 
-Actual hours worked
+**Store:**
 
-Verified by GPS
+- clockOutTime
+- clockOutLat
+- clockOutLng
 
-💰 PHASE 4 — Payroll Sync (QuickBooks)
+**Update:**
+cleaningStatus = "COMPLETED"
 
-After clockOut:
+Now you have verified job duration.
 
-Calculate:
+---
 
-workedHours = clockOut - clockIn
+# 💰 PHASE 4 — Payroll Preparation (Structured)
 
-Then:
+We do NOT directly trust calendar duration.
 
-Push to QuickBooks Payroll
-OR
+**We calculate:**
+workedHours = clockOutTime – clockInTime
 
-Export weekly payroll sheet
+**Store:**
 
-Now cleaner payment is automated.
+- workedHours
+- payrollStatus = "READY"
 
-🔧 PHASE 5 — Maintenance Automation (Later)
+**Options:**
 
-After cleaning:
+- **Option A:** Export weekly payroll sheet.
+- **Option B:** Push to QuickBooks Payroll automatically.
 
-Cleaner can report:
+**System rule:**
+Payroll only processes jobs with:
 
-Broken item
+- cleaningStatus = COMPLETED
+- AND payrollStatus = READY
 
-Damage
+---
 
-Missing supply
+# 🔧 PHASE 5 — Maintenance Reporting (Form-Based)
 
-This creates:
+After clock-out form:
 
-Maintenance ticket:
+Cleaner sees:
+"Report Issue?"
 
-propertyUid
+If yes:
+Create maintenance_ticket entry.
 
-issue
+**Fields:**
 
-photos
+- bookingUid
+- propertyUid
+- issueType
+- description
+- photoUpload
+- priority
+- status = "OPEN"
 
-priority
+Separate maintenance workflow handles technician assignment.
 
-assigned technician
+---
 
-Separate workflow.
+# 📦 PHASE 6 — Supply Tracking
 
-📦 PHASE 6 — Supply Tracking
+After cleaning completion form:
+Cleaner can report supply usage.
 
-When cleaner finishes:
+**Form collects:**
 
-They can report:
+- Supply type
+- Quantity used
+- Low stock checkbox
 
-Paper towels low
+**System:**
+Reduces inventory count.
 
-Soap low
+If below threshold:
+Create reorder task.
 
-Trash bags low
+Separate procurement workflow handles purchase.
 
-System:
+---
 
-Decreases inventory
+# 🗓 Calendar Architecture Rules
 
-If below threshold → auto create order task
+**Calendar is:**
+View layer only.
 
-🧠 High-Level Architecture Flow
+**It does NOT:**
 
-New Booking
-→ Create Reservation Record
-→ Create Cleaning Job
-→ Assign Cleaner
-→ Notify Cleaner
-→ Cleaner Clock In
-→ Cleaner Clock Out
-→ Sync Payroll
-→ Update Reservation Status
+- Control status
+- Track payroll
+- Trigger automation
 
-Everything modular.
+Only Sheets can do that.
+
+**Cleaners:**
+
+- View-only access
+- Cannot edit events
+- Cannot change time
+
+All edits must originate from workflow.

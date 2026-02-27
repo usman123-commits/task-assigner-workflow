@@ -3,223 +3,423 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "phase2-manual-trigger",
+      "id": "cfe3a731-6200-4f80-8aaa-55f4057b8a07",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 300],
+      "position": [
+        -5168,
+        560
+      ],
       "notes": "Replace with Schedule Trigger (e.g. every 5 min) for production. Kept Manual for testing."
     },
     {
       "parameters": {
-        "operation": "read",
-        "documentId": { "__rl": true, "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "cleaning_job", "mode": "name" },
-        "filtersUI": {
-          "values": [
-            { "lookupColumn": "cleaningStatus", "lookupValue": "PENDING" }
-          ]
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleanersProfile",
+          "mode": "name"
         },
         "options": {}
       },
-      "id": "phase2-read-cleaning-jobs",
-      "name": "Read Pending Cleaning Jobs",
+      "id": "phase2-read-cleaners-profile",
+      "name": "Read CleanersProfile",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [220, 300],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_GOOGLE_CREDENTIAL_ID", "name": "Google Sheets account" } },
-      "notes": "Reads cleaning_job rows where cleaningStatus = PENDING. Filter empty cleanerId in next node."
+      "position": [
+        -5380,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Tab: CleanersProfile. Columns: property UID, cleaner ID, calendar ID, email, name, contact. Used by Assign Cleaner for lookup."
     },
     {
       "parameters": {
-        "jsCode": "// Only process rows that are PENDING and have no cleaner assigned (and no event yet).\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const j = item.json || {};\n  const status = (j.cleaningStatus ?? '').toString().trim();\n  const cleanerId = (j.cleanerId ?? '').toString().trim();\n  const hasEvent = (j.calendarEventId ?? '').toString().trim() !== '';\n  return status === 'PENDING' && cleanerId === '' && !hasEvent;\n});\nreturn filtered;"
+        "jsCode": "// Pass one item so Read Pending Cleaning Jobs runs once (CleanersProfile data is available via $('Read CleanersProfile').all() later).\nreturn [$input.first()];"
       },
-      "id": "phase2-filter-pending",
+      "id": "phase2-single-item-for-read-jobs",
+      "name": "Single Item for Read Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5168,
+        560
+      ],
+      "notes": "Outputs one item so downstream Read Pending Cleaning Jobs runs once. CleanersProfile rows are read once and referenced in Assign Cleaner."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "3f7ebf07-67fd-4b0d-8089-44bdb3c0db49",
+      "name": "Read Pending Cleaning Jobs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -4944,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Same spreadsheet as Phase 1. Sheet: CleaningJobs. Reads all rows; Filter Pending Only filters by status=PENDING and empty cleanerId."
+    },
+    {
+      "parameters": {
+        "jsCode": "// CleaningJobs sheet has 'status' (not cleaningStatus). Keep only PENDING, no cleaner assigned, no event yet.\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const j = item.json || {};\n  const status = (j.status ?? '').toString().trim();\n  const cleanerId = (j.cleanerId ?? '').toString().trim();\n  const hasEvent = (j.calendarEventId ?? '').toString().trim() !== '';\n  return status === 'PENDING' && cleanerId === '' && !hasEvent;\n});\nreturn filtered;"
+      },
+      "id": "312c0257-f353-426c-9f8b-6faf6f2da290",
       "name": "Filter Pending Only",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300],
+      "position": [
+        -4720,
+        560
+      ],
       "notes": "Ensures we only process PENDING + empty cleanerId. Skips if calendarEventId already set (no duplicate events)."
     },
     {
-      "parameters": { "batchSize": 1, "options": {} },
-      "id": "phase2-split-batches",
+      "parameters": {
+        "jsCode": "// Attach CleanersProfile data to each job so Assign Cleaner can use it inside the loop (no $('Read CleanersProfile') in loop).\nlet profile = [];\ntry {\n  const node = $('Read CleanersProfile');\n  if (node && typeof node.all === 'function') profile = node.all();\n} catch (_) {}\nconst items = $input.all();\nreturn items.map(item => ({ json: { ...item.json, _cleanersProfile: Array.isArray(profile) ? profile : [] } }));"
+      },
+      "id": "phase2-attach-cleaners-profile",
+      "name": "Attach CleanersProfile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4608,
+        560
+      ],
+      "notes": "Runs once before loop. Attaches CleanersProfile rows to each item so Assign Cleaner can read them inside the loop."
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "23ad701e-6fa9-4512-b9d9-7335d740b477",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [660, 300],
+      "position": [
+        -4496,
+        560
+      ],
       "notes": "Process one cleaning job at a time to avoid overwrites and allow clear error scope."
     },
     {
       "parameters": {
-        "operation": "read",
-        "documentId": { "__rl": true, "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "reservation", "mode": "name" },
-        "filtersUI": { "values": [{ "lookupColumn": "bookingUid", "lookupValue": "={{ $json.bookingUid }}" }] },
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.bookingUid }}"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "phase2-lookup-reservation",
+      "id": "31ba4bc0-c0a5-46bb-9abe-adec72586ea5",
       "name": "Lookup Reservation",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [880, 200],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_GOOGLE_CREDENTIAL_ID", "name": "Google Sheets account" } },
-      "notes": "Enriches with reservation data: propertyName, address (if columns exist). Merge in next node."
+      "position": [
+        -4272,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Same spreadsheet as Phase 1. Sheet: Reservations. Enriches with propertyName, address if columns exist."
     },
     {
       "parameters": {
         "jsCode": "// If Lookup returned 0 rows or empty row, use job only with fallbacks. Otherwise use first lookup row.\nconst job = $('Split In Batches').last().json;\nconst items = $input.all();\nconst hasReservation = items.length > 0 && items[0].json?.bookingUid;\nconst lookup = hasReservation ? items[0].json : {};\nconst merged = { ...job, ...lookup, propertyName: lookup.propertyName ?? job.propertyName ?? job.propertyUid, address: lookup.address ?? job.address ?? 'Address TBD' };\nreturn [{ json: merged }];"
       },
-      "id": "phase2-ensure-one-item",
+      "id": "00bc87b3-811d-423a-b3b3-cc597c856dbe",
       "name": "Ensure One Item (Job or Reservation)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [990, 200],
+      "position": [
+        -4048,
+        320
+      ],
       "notes": "When Lookup returns no row, pass job only with propertyName/address fallbacks so Assign Cleaner still runs."
     },
     {
       "parameters": {
         "jsCode": "// Merge cleaning job (from Split In Batches) with reservation (from Ensure One Item).\nconst job = $('Split In Batches').last().json;\nconst lookup = $input.first().json;\nconst merged = { ...job, ...lookup };\nreturn [{ json: merged }];"
       },
-      "id": "phase2-merge-job-reservation",
+      "id": "ab9acf5c-b4f9-4cce-9bc1-35776640cb0c",
       "name": "Merge Job and Reservation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200],
+      "position": [
+        -3824,
+        320
+      ],
       "notes": "One item: cleaning job + reservation fields for propertyName, address, etc."
     },
     {
       "parameters": {
-        "jsCode": "// STEP 2 — Assign cleaner by propertyUid. Expand PROPERTY_TO_CLEANER for more properties.\nconst PROPERTY_TO_CLEANER = {\n  'property-uid-1': { cleanerId: 'C1', email: 'cleaner1@example.com', calendarId: 'cleaner1@group.calendar.google.com' },\n  'property-uid-2': { cleanerId: 'C2', email: 'cleaner2@example.com', calendarId: 'cleaner2@group.calendar.google.com' }\n};\nconst item = $input.first().json;\nconst propertyUid = (item.propertyUid ?? '').toString().trim();\nconst mapping = PROPERTY_TO_CLEANER[propertyUid];\nif (!mapping) {\n  throw new Error(`No cleaner mapping for propertyUid: ${propertyUid}. Add to PROPERTY_TO_CLEANER.`);\n}\nconst assignedAt = new Date().toISOString();\nreturn [{\n  json: {\n    ...item,\n    cleanerId: mapping.cleanerId,\n    cleanerEmail: mapping.email,\n    cleanerCalendarId: mapping.calendarId,\n    assignedAt,\n    cleaningStatus: 'ASSIGNED'\n  }\n}];"
+        "jsCode": "// STEP 2 — Assign cleaner by propertyUid using CleanersProfile data attached before the loop. Columns: property UID, cleaner ID, calendar ID, email, name, contact.\nconst item = $input.first().json;\nconst propertyUid = (item.propertyUid ?? '').toString().trim();\nconst rows = Array.isArray(item._cleanersProfile) ? item._cleanersProfile : [];\nif (rows.length === 0) throw new Error('No CleanersProfile data on item. Ensure Attach CleanersProfile node runs before Split In Batches and Read CleanersProfile has rows.');\nconst get = (row, ...keys) => { const j = row && (row.json !== undefined ? row.json : row); if (!j || typeof j !== 'object') return ''; for (const k of keys) { const v = j[k]; if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim(); } return ''; };\nconst mapping = rows.find(r => {\n  const uid = get(r, 'property UID', 'propertyUid');\n  return uid && uid === propertyUid;\n});\nif (!mapping) {\n  throw new Error(`No cleaner for propertyUid: ${propertyUid}. Add a row in CleanersProfile with property UID = ${propertyUid}.`);\n}\nconst cleanerId = get(mapping, 'cleaner ID', 'cleanerId');\nconst email = get(mapping, 'email');\nconst calendarId = get(mapping, 'calendar ID', 'calendarId');\nif (!cleanerId) throw new Error(`CleanersProfile row for ${propertyUid} has no cleaner ID.`);\nconst assignedAt = new Date().toISOString();\nconst out = { ...item, cleanerId, cleanerEmail: email || item.cleanerEmail, cleanerCalendarId: calendarId || item.cleanerCalendarId, cleanerName: get(mapping, 'name'), cleanerContact: get(mapping, 'contact'), assignedAt, status: 'ASSIGNED' };\ndelete out._cleanersProfile;\nreturn [{ json: out }];"
       },
-      "id": "phase2-assign-cleaner",
+      "id": "164dda3b-76fe-4c6f-a056-4b07abe06c37",
       "name": "Assign Cleaner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, 200],
-      "notes": "Static mapping propertyUid → cleanerId, email, calendarId. Update PROPERTY_TO_CLEANER for your properties."
+      "position": [
+        -3600,
+        320
+      ],
+      "notes": "Lookup from CleanersProfile sheet by property UID. Needs columns: property UID, cleaner ID, calendar ID, email, name, contact."
     },
     {
       "parameters": {
         "operation": "update",
-        "documentId": { "__rl": true, "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "cleaning_job", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
             "bookingUid": "={{ $json.bookingUid }}",
             "cleanerId": "={{ $json.cleanerId }}",
             "assignedAt": "={{ $json.assignedAt }}",
-            "cleaningStatus": "={{ $json.cleaningStatus }}"
+            "status": "={{ $json.status }}"
           },
-          "matchingColumns": ["bookingUid"]
+          "matchingColumns": [
+            "bookingUid"
+          ]
         },
         "options": {}
       },
-      "id": "phase2-update-job-assigned",
+      "id": "eb61d767-584d-4655-a05d-19f783e80650",
       "name": "Update Job Assigned",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [1540, 200],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_GOOGLE_CREDENTIAL_ID", "name": "Google Sheets account" } },
-      "notes": "Update by bookingUid. Only sets cleanerId, assignedAt, cleaningStatus. Does not overwrite other columns."
+      "position": [
+        -3376,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Update by bookingUid. CleaningJobs sheet has 'status' column; sets cleanerId, assignedAt, status=ASSIGNED."
     },
     {
       "parameters": {
         "jsCode": "// STEP 3 — Calculate cleaning time: start 11:00 AM on cleaningDate, duration 3 hours.\nconst DURATION_HOURS = 3;\nconst item = $input.first().json;\nconst cleaningDateRaw = item.cleaningDate || item.checkOut || '';\nlet startTime;\ntry {\n  const d = new Date(cleaningDateRaw);\n  if (isNaN(d.getTime())) throw new Error('Invalid date');\n  d.setHours(11, 0, 0, 0);\n  startTime = d.toISOString();\n} catch (_) {\n  startTime = new Date().toISOString().replace(/T\\d{2}:\\d{2}:\\d{2}/, 'T11:00:00');\n}\nconst endDate = new Date(startTime);\nendDate.setHours(endDate.getHours() + DURATION_HOURS);\nconst endTime = endDate.toISOString();\nreturn [{ json: { ...item, startTime, endTime, durationHours: DURATION_HOURS } }];"
       },
-      "id": "phase2-calculate-time",
+      "id": "bfb0a99f-97e0-4492-96d5-393f828ab02d",
       "name": "Calculate Cleaning Time",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1760, 200],
+      "position": [
+        -3152,
+        320
+      ],
       "notes": "startTime = cleaningDate at 11:00 AM; endTime = startTime + 3h. Change DURATION_HOURS to make configurable."
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
           "conditions": [
-            { "id": "has-event", "leftValue": "={{ ($json.calendarEventId ?? '').toString().trim() }}", "rightValue": "", "operator": { "type": "string", "operation": "notEquals" } }
+            {
+              "id": "has-event",
+              "leftValue": "={{ ($json.calendarEventId ?? '').toString().trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
           ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "phase2-if-has-calendar-event",
+      "id": "c388c94b-20a7-403b-ac87-4398eec45035",
       "name": "Already Has Calendar Event?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1980, 200],
+      "position": [
+        -2928,
+        320
+      ],
       "notes": "TRUE = calendarEventId set → skip event creation (and notification). FALSE = create events + notify."
     },
     {
       "parameters": {
-        "calendarId": { "__rl": true, "value": "REPLACE_ADMIN_CALENDAR_ID", "mode": "id" },
-        "title": "=Cleaning – {{ $json.propertyName || $json.propertyUid }} – {{ $json.guestName || 'Guest' }}",
+        "calendar": {
+          "__rl": true,
+          "value": "usman2acountf@gmail.com",
+          "mode": "list",
+          "cachedResultName": "usman2acountf@gmail.com"
+        },
         "start": "={{ $json.startTime }}",
         "end": "={{ $json.endTime }}",
-        "description": "=Property: {{ $json.propertyName || $json.propertyUid }}\nAddress: {{ $json.address || 'See sheet' }}\nGuest Count: {{ $json.adultCount ?? '' }}\nBooking ID: {{ $json.bookingUid }}",
-        "options": {}
+        "additionalFields": {}
       },
-      "id": "phase2-create-admin-event",
+      "id": "4f058a4e-2c29-4355-a2de-402c63cd6d81",
       "name": "Create Admin Calendar Event",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.2,
-      "position": [2200, 100],
-      "credentials": { "googleCalendarOAuth2Api": { "id": "REPLACE_GOOGLE_CALENDAR_CREDENTIAL_ID", "name": "Google Calendar account" } },
+      "position": [
+        -2704,
+        224
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "u0zJ9RMcwZ9KgjoO",
+          "name": "Google Calendar account"
+        }
+      },
       "notes": "Primary/admin calendar. Set calendarId in parameters (e.g. primary or shared admin calendar)."
     },
     {
       "parameters": {
-        "calendarId": { "__rl": true, "value": "={{ $json.cleanerCalendarId }}", "mode": "id" },
-        "title": "=Cleaning – {{ $json.propertyName || $json.propertyUid }} – {{ $json.guestName || 'Guest' }}",
+        "calendar": {
+          "__rl": true,
+          "value": "usman2acountf@gmail.com",
+          "mode": "list",
+          "cachedResultName": "usman2acountf@gmail.com"
+        },
         "start": "={{ $json.startTime }}",
         "end": "={{ $json.endTime }}",
-        "description": "=Property: {{ $json.propertyName || $json.propertyUid }}\nAddress: {{ $json.address || 'See sheet' }}\nGuest Count: {{ $json.adultCount ?? '' }}\nBooking ID: {{ $json.bookingUid }}",
-        "options": {}
+        "additionalFields": {}
       },
-      "id": "phase2-create-cleaner-event",
+      "id": "bb7de93c-bc14-437f-ac7e-fd27b43a1199",
       "name": "Create Cleaner Calendar Event",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.2,
-      "position": [2420, 100],
-      "credentials": { "googleCalendarOAuth2Api": { "id": "REPLACE_GOOGLE_CALENDAR_CREDENTIAL_ID", "name": "Google Calendar account" } },
+      "position": [
+        -2480,
+        224
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "u0zJ9RMcwZ9KgjoO",
+          "name": "Google Calendar account"
+        }
+      },
       "notes": "Cleaner's calendar. Event ID from response is saved to sheet in next node."
     },
     {
       "parameters": {
         "jsCode": "// Pass through job + calendar event id from cleaner event (for sheet update).\nconst job = $('Calculate Cleaning Time').last().json;\nconst eventResult = $input.first().json;\nconst eventId = eventResult?.id ?? eventResult?.data?.id ?? '';\nreturn [{ json: { ...job, calendarEventId: eventId } }];"
       },
-      "id": "phase2-prepare-event-id",
+      "id": "62515233-6a87-4c62-b585-283bdbf95903",
       "name": "Prepare Event Id for Sheet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2640, 100],
+      "position": [
+        -2256,
+        224
+      ],
       "notes": "Extracts event ID from Google Calendar create response. Cleaner calendar event ID is source of truth for link."
     },
     {
       "parameters": {
         "operation": "update",
-        "documentId": { "__rl": true, "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "cleaning_job", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
             "bookingUid": "={{ $json.bookingUid }}",
             "calendarEventId": "={{ $json.calendarEventId }}"
           },
-          "matchingColumns": ["bookingUid"]
+          "matchingColumns": [
+            "bookingUid"
+          ]
         },
         "options": {}
       },
-      "id": "phase2-update-calendar-event-id",
+      "id": "45516dba-b7d0-4636-b46b-198f753c371f",
       "name": "Update Job With Event Id",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [2860, 100],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_GOOGLE_CREDENTIAL_ID", "name": "Google Sheets account" } },
-      "notes": "Writes cleaner calendar event ID to cleaning_job. Used for skip logic and for building calendar link in email."
+      "position": [
+        -2032,
+        224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Same spreadsheet as Phase 1. Sheet: CleaningJobs. Writes calendarEventId by bookingUid."
     },
     {
       "parameters": {
@@ -229,85 +429,278 @@
         "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Calculate Cleaning Time').last().json.propertyName || $('Calculate Cleaning Time').last().json.propertyUid }}\nAddress: {{ $('Calculate Cleaning Time').last().json.address || 'See assignment' }}\nDate: {{ $('Calculate Cleaning Time').last().json.cleaningDate || $('Calculate Cleaning Time').last().json.checkOut }}\nTime: 11:00 AM\nGuest Count: {{ $('Calculate Cleaning Time').last().json.adultCount ?? '' }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created – check your calendar' }}\n\nThis email serves as official assignment confirmation.",
         "options": {}
       },
-      "id": "phase2-send-gmail",
+      "id": "20582d6f-7e0e-41b7-9004-3be283ebb36a",
       "name": "Send Gmail to Cleaner",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [3080, 100],
-      "credentials": { "gmailOAuth2": { "id": "REPLACE_GMAIL_CREDENTIAL_ID", "name": "Gmail account" } },
+      "position": [
+        -1808,
+        392
+      ],
+      "webhookId": "1a9edaf5-05fc-43a5-b167-dae117a87bc1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gBew8I7wXjZj6cXO",
+          "name": "Gmail account"
+        }
+      },
       "notes": "Sends to cleaner email from mapping. Calendar link uses event ID (format may vary by API)."
     },
     {
       "parameters": {},
-      "id": "phase2-noop-skip",
+      "id": "b4447067-f6b9-42d8-ba91-5a0e8b156d4f",
       "name": "Skip (Already Has Event)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2200, 300],
+      "position": [
+        -2704,
+        416
+      ],
       "notes": "When calendarEventId already set: no duplicate event, no duplicate email. Rejoin loop."
     }
   ],
+  "pinData": {},
   "connections": {
     "Manual Trigger": {
-      "main": [[{ "node": "Read Pending Cleaning Jobs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Read CleanersProfile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CleanersProfile": {
+      "main": [
+        [
+          {
+            "node": "Single Item for Read Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Single Item for Read Jobs": {
+      "main": [
+        [
+          {
+            "node": "Read Pending Cleaning Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Read Pending Cleaning Jobs": {
-      "main": [[{ "node": "Filter Pending Only", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Filter Pending Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Filter Pending Only": {
-      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Attach CleanersProfile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach CleanersProfile": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split In Batches": {
       "main": [
         [],
-        [[{ "node": "Lookup Reservation", "type": "main", "index": 0 }]]
+        [
+          {
+            "node": "Lookup Reservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Lookup Reservation": {
-      "main": [[{ "node": "Ensure One Item (Job or Reservation)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Ensure One Item (Job or Reservation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Ensure One Item (Job or Reservation)": {
-      "main": [[{ "node": "Merge Job and Reservation", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Merge Job and Reservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge Job and Reservation": {
-      "main": [[{ "node": "Assign Cleaner", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Assign Cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Assign Cleaner": {
-      "main": [[{ "node": "Update Job Assigned", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update Job Assigned",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update Job Assigned": {
-      "main": [[{ "node": "Calculate Cleaning Time", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Calculate Cleaning Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Calculate Cleaning Time": {
-      "main": [[{ "node": "Already Has Calendar Event?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Already Has Calendar Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Already Has Calendar Event?": {
       "main": [
-        [[{ "node": "Skip (Already Has Event)", "type": "main", "index": 0 }]],
-        [[{ "node": "Create Admin Calendar Event", "type": "main", "index": 0 }]]
+        [
+          {
+            "node": "Skip (Already Has Event)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Admin Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Skip (Already Has Event)": {
-      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Create Admin Calendar Event": {
-      "main": [[{ "node": "Create Cleaner Calendar Event", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Create Cleaner Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Create Cleaner Calendar Event": {
-      "main": [[{ "node": "Prepare Event Id for Sheet", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Event Id for Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Event Id for Sheet": {
-      "main": [[{ "node": "Update Job With Event Id", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update Job With Event Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update Job With Event Id": {
-      "main": [[{ "node": "Send Gmail to Cleaner", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Gmail to Cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send Gmail to Cleaner": {
-      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "pinData": {},
-  "settings": { "executionOrder": "v1" },
-  "meta": { "templateCredsSetupCompleted": false },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1f20505c-8d14-4012-b426-fa7dc03e4a6a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
+  },
+  "id": "9vDem5tE8Vz67m2x",
   "tags": []
 }
