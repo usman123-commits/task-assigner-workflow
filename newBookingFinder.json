@@ -189,12 +189,19 @@
             "propertyUid": "={{ $json.propertyUid }}",
             "cleaningDate": "={{ $json.cleaningDate }}",
             "cleaningTime": "={{ $json.cleaningTime }}",
-            "status": "={{ $json.status }}",
-            "assignedCleaner": "={{ $json.assignedCleaner }}",
-            "clockIn": "={{ $json.clockIn }}",
-            "clockOut": "={{ $json.clockOut }}",
-            "workedHours": "={{ $json.workedHours }}",
-            "createdAtSystem": "={{ $json.createdAtSystem }}"
+            "status": "PENDING",
+            "assignedCleaner": "",
+            "clockIn": "",
+            "clockOut": "",
+            "workedHours": "",
+            "createdAtSystem": "={{ $json.createdAtSystem }}",
+            "cleanerId": "",
+            "assignedAt": "",
+            "notificationStatus": "",
+            "calendarStatus": "",
+            "calendarEventId": "",
+            "calendarId": "",
+            "processingFlag": ""
           },
           "matchingColumns": [],
           "schema": [
@@ -296,6 +303,69 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleanerId",
+              "displayName": "cleanerId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assignedAt",
+              "displayName": "assignedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notificationStatus",
+              "displayName": "notificationStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarStatus",
+              "displayName": "calendarStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarEventId",
+              "displayName": "calendarEventId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarId",
+              "displayName": "calendarId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processingFlag",
+              "displayName": "processingFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -358,6 +428,8 @@
             "source": "={{ $json.channel }}",
             "createdUtc": "={{ $json.metadata?.createdUtcDateTime }}",
             "cleaningStatus": "PENDING",
+            "maintenanceStatus": "NONE",
+            "payrollStatus": "NOT_STARTED",
             "createdAtSystem": "={{ $now.toISO() }}",
             "childrenCount": "={{ $json.guestInformation?.childrenCount ?? '' }}"
           },
@@ -471,6 +543,24 @@
               "type": "string",
               "canBeUsedToMatch": true,
               "removed": false
+            },
+            {
+              "id": "maintenanceStatus",
+              "displayName": "maintenanceStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payrollStatus",
+              "displayName": "payrollStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,

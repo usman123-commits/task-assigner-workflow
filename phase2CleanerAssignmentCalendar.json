@@ -93,7 +93,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// CleaningJobs sheet has 'status' (not cleaningStatus). Keep only PENDING, no cleaner assigned, no event yet.\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const j = item.json || {};\n  const status = (j.status ?? '').toString().trim();\n  const cleanerId = (j.cleanerId ?? '').toString().trim();\n  const hasEvent = (j.calendarEventId ?? '').toString().trim() !== '';\n  return status === 'PENDING' && cleanerId === '' && !hasEvent;\n});\nreturn filtered;"
+        "jsCode": "// CleaningJobs sheet has 'status' (not cleaningStatus). Keep only PENDING, no cleaner assigned, no event yet, processingFlag empty (row-level lock).\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const j = item.json || {};\n  const status = (j.status ?? '').toString().trim();\n  const cleanerId = (j.cleanerId ?? '').toString().trim();\n  const hasEvent = (j.calendarEventId ?? '').toString().trim() !== '';\n  const processingFlag = (j.processingFlag ?? '').toString().trim();\n  return status === 'PENDING' && cleanerId === '' && !hasEvent && processingFlag === '';\n});\nreturn filtered;"
       },
       "id": "e014b651-cefe-4ea2-a22a-b4dd4f107307",
       "name": "Filter Pending Only",
@@ -235,8 +235,7 @@
           "value": {
             "bookingUid": "={{ $json.bookingUid }}",
             "cleanerId": "={{ $json.cleanerId }}",
-            "assignedAt": "={{ $json.assignedAt }}",
-            "status": "={{ $json.status }}"
+            "assignedAt": "={{ $json.assignedAt }}"
           },
           "matchingColumns": [
             "bookingUid"
@@ -449,7 +448,7 @@
           "name": "Google Sheets account"
         }
       },
-      "notes": "Update by bookingUid. CleaningJobs sheet has 'status' column; sets cleanerId, assignedAt, status=ASSIGNED."
+      "notes": "Update by bookingUid. Sets cleanerId and assignedAt only. status=ASSIGNED is written later by Finalize Assignment after calendar creation."
     },
     {
       "parameters": {
@@ -648,6 +647,190 @@
         64
       ],
       "notes": "When calendarEventId already set: no duplicate event, no duplicate email. Rejoin loop."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "processingFlag": "LOCKED"
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ],
+          "schema": [
+            {
+              "id": "bookingUid",
+              "displayName": "bookingUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processingFlag",
+              "displayName": "processingFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "phase2-lock-cleaning-job",
+      "name": "Lock Cleaning Job",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [-4240, 208],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Row-level lock: set processingFlag=LOCKED so other runs do not pick this row. Runs before Assign Cleaner."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "cleanerId": "={{ $json.cleanerId }}",
+            "assignedAt": "={{ $json.assignedAt }}",
+            "status": "ASSIGNED",
+            "calendarStatus": "CREATED",
+            "calendarEventId": "={{ $json.calendarEventId }}",
+            "calendarId": "={{ $json.cleanerCalendarId ?? '' }}",
+            "processingFlag": ""
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ],
+          "schema": [
+            {
+              "id": "bookingUid",
+              "displayName": "bookingUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleanerId",
+              "displayName": "cleanerId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assignedAt",
+              "displayName": "assignedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarStatus",
+              "displayName": "calendarStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarEventId",
+              "displayName": "calendarEventId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calendarId",
+              "displayName": "calendarId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processingFlag",
+              "displayName": "processingFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "phase2-finalize-assignment",
+      "name": "Finalize Assignment",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [-1680, 208],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6WzYJIrG1pOhcusY",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Atomic update after calendar creation and Gmail: sets status=ASSIGNED, calendarStatus=CREATED, clears processingFlag."
     }
   ],
   "pinData": {},
@@ -721,6 +904,17 @@
     "Split In Batches": {
       "main": [
         [],
+        [
+          {
+            "node": "Lock Cleaning Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lock Cleaning Job": {
+      "main": [
         [
           {
             "node": "Lookup Reservation",
@@ -870,6 +1064,17 @@
       ]
     },
     "Send Gmail to Cleaner": {
+      "main": [
+        [
+          {
+            "node": "Finalize Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Assignment": {
       "main": [
         [
           {
