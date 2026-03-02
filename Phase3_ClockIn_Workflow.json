@@ -178,7 +178,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// STEP 4 – Late check. Use ONLY scheduledCleaningTimeUTC from sheet (Fix #2).\nconst item = $input.first().json;\nconst scheduledCleaningTimeUTC = item.scheduledCleaningTimeUTC;\nconst serverTime = new Date();\nconst deadline = scheduledCleaningTimeUTC != null ? new Date(scheduledCleaningTimeUTC) : null;\nif (deadline != null) deadline.setHours(deadline.getHours() + 1);\nconst lateFlag = deadline != null && !isNaN(deadline.getTime()) && serverTime > deadline;\nconst clockInTimeUTC = serverTime.toISOString();\nreturn [{ json: { ...item, lateFlag, clockInTimeUTC } }];"
+        "jsCode": "// STEP 4 – Late check. Use ONLY scheduledCleaningTimeUTC. All comparisons UTC-only.\nconst item = $input.first().json;\nconst scheduledCleaningTimeUTC = item.scheduledCleaningTimeUTC;\nconst serverTime = new Date();\nconst clockInTimeUTC = serverTime.toISOString();\nconst deadline = scheduledCleaningTimeUTC != null && scheduledCleaningTimeUTC !== '' ? new Date(scheduledCleaningTimeUTC) : null;\nif (deadline != null && !isNaN(deadline.getTime())) {\n  deadline.setUTCHours(deadline.getUTCHours() + 1);\n}\nconst lateFlag = deadline != null && !isNaN(deadline.getTime()) && serverTime > deadline;\nreturn [{ json: { ...item, lateFlag, clockInTimeUTC } }];"
       },
       "id": "late-check",
       "name": "Late Check",
@@ -211,7 +211,7 @@
         "toEmail": "={{ $env.N8N_ALERT_EMAIL || 'admin@example.com' }}",
         "subject": "Late Clock-In Alert",
         "emailType": "text",
-        "message": "Late clock-in recorded.\n\nbookingUid: {{ $json.bookingUid }}\ncleanerId: {{ $json.cleanerId }}\nscheduledCleaningTime: {{ $json.scheduledCleaningTime }}\nactual clockInTime: {{ $json.clockInTimeUTC }}\ndistance (m): {{ $json.distance }}\ngpsStatus: {{ $json.gpsStatus }}",
+        "message": "Late clock-in recorded.\n\nbookingUid: {{ $json.bookingUid }}\ncleanerId: {{ $json.cleanerId }}\nscheduledCleaningTime: {{ $json.scheduledCleaningTimeUTC }}\nactual clockInTime: {{ $json.clockInTimeUTC }}\ndistance (m): {{ $json.distance }}\ngpsStatus: {{ $json.gpsStatus }}",
         "options": {}
       },
       "id": "send-late-email",

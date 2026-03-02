@@ -466,7 +466,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// STEP 3 — Calculate cleaning time: start 11:00 AM on cleaningDate, duration 3 hours.\nconst DURATION_HOURS = 3;\nconst item = $input.first().json;\nconst cleaningDateRaw = item.cleaningDate || item.checkOut || '';\nlet startTime;\ntry {\n  const d = new Date(cleaningDateRaw);\n  if (isNaN(d.getTime())) throw new Error('Invalid date');\n  d.setHours(11, 0, 0, 0);\n  startTime = d.toISOString();\n} catch (_) {\n  startTime = new Date().toISOString().replace(/T\\d{2}:\\d{2}:\\d{2}/, 'T11:00:00');\n}\nconst endDate = new Date(startTime);\nendDate.setHours(endDate.getHours() + DURATION_HOURS);\nconst endTime = endDate.toISOString();\nreturn [{ json: { ...item, startTime, endTime, durationHours: DURATION_HOURS } }];"
+        "jsCode": "// Strict UTC only. Use scheduledCleaningTimeUTC from the original job (Split In Batches), not from trimmed update output.\n// No 11:00 logic, no cleaningDate/checkOut fallbacks.\nconst DURATION_HOURS = 3;\n// Always pull the full job (with scheduledCleaningTimeUTC) from Split In Batches.\nconst job = (() => {\n  try {\n    const n = $('Split In Batches');\n    if (n && typeof n.last === 'function') {\n      const v = n.last().json;\n      if (v && typeof v === 'object') return v;\n    }\n  } catch (_) {}\n  const current = $input.first()?.json;\n  return current && typeof current === 'object' ? current : {};\n})();\nconst startTime = job.scheduledCleaningTimeUTC;\nif (!startTime || typeof startTime !== 'string' || startTime.trim() === '')\n  throw new Error('Missing scheduledCleaningTimeUTC');\nconst startDate = new Date(startTime.trim());\nif (isNaN(startDate.getTime()))\n  throw new Error('Invalid scheduledCleaningTimeUTC');\nconst endDate = new Date(startDate.getTime() + DURATION_HOURS * 3600 * 1000);\nconst endTime = endDate.toISOString();\n// Merge timing fields back onto the latest item in the chain so downstream nodes see them.\nconst base = $input.first()?.json || job;\nreturn [{ json: { ...base, startTime: startTime.trim(), endTime, durationHours: DURATION_HOURS } }];"
       },
       "id": "61abba55-877c-47be-8fa3-012b9bab2ad6",
       "name": "Calculate Cleaning Time",
@@ -476,7 +476,7 @@
         -176,
         320
       ],
-      "notes": "startTime = cleaningDate at 11:00 AM; endTime = startTime + 3h. Change DURATION_HOURS to make configurable."
+      "notes": "startTime = scheduledCleaningTimeUTC from original CleaningJobs row; endTime = startTime + 3h UTC. No 11:00, no legacy fields."
     },
     {
       "parameters": {
