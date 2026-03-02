@@ -189,6 +189,8 @@
             "propertyUid": "={{ $json.propertyUid }}",
             "cleaningDate": "={{ $json.cleaningDate }}",
             "cleaningTime": "={{ $json.cleaningTime }}",
+            "checkoutTimeUTC": "={{ $json.checkoutTimeUTC }}",
+            "scheduledCleaningTimeUTC": "={{ $json.scheduledCleaningTimeUTC }}",
             "status": "PENDING",
             "assignedCleaner": "",
             "clockIn": "",
@@ -249,6 +251,24 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "checkoutTimeUTC",
+              "displayName": "checkoutTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "scheduledCleaningTimeUTC",
+              "displayName": "scheduledCleaningTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
             },
             {
               "id": "status",
@@ -390,7 +410,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json;\nconst bookingUid = j?.uid || j?.bookingUid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst dateTime = j?.checkOutLocalDateTime || j?.checkOut || '';\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: j?.propertyUid ?? '', cleaningDate: dateTime, cleaningTime: dateTime, status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
+        "jsCode": "// CleaningJobs: authoritative UTC fields for Phase 3. No legacy-only dependence.\nconst j = $input.first().json;\nconst bookingUid = j?.uid || j?.bookingUid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst rawCheckout = j?.checkOutUtc ?? j?.checkOutLocalDateTime ?? j?.checkOut ?? '';\nif (!rawCheckout || typeof rawCheckout !== 'string' || rawCheckout.trim() === '')\n  throw new Error('Missing required column configuration: checkout time not provided');\nconst checkoutDate = new Date(rawCheckout.trim());\nif (isNaN(checkoutDate.getTime()))\n  throw new Error('Invalid checkout time: cannot parse date');\nconst checkoutTimeUTC = checkoutDate.toISOString();\nconst y = checkoutDate.getUTCFullYear(), m = checkoutDate.getUTCMonth(), d = checkoutDate.getUTCDate();\nconst scheduledCleaningTimeUTC = new Date(Date.UTC(y, m, d, 11, 0, 0, 0)).toISOString();\nconst dateTime = rawCheckout.trim();\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: j?.propertyUid ?? '', cleaningDate: dateTime, cleaningTime: dateTime, checkoutTimeUTC, scheduledCleaningTimeUTC, status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
       },
       "id": "1480f9f3-92a0-42b6-9b4f-52fc27b93a31",
       "name": "Prepare Cleaning Job Data",

@@ -217,6 +217,20 @@
     },
     {
       "parameters": {
+        "jsCode": "// Form prefilled link constants (replace with real IDs when form is ready).\nconst FORM_ID_HERE = 'FORM_ID_HERE';\nconst ENTRY_BOOKING_UID_HERE = 'ENTRY_BOOKING_UID_HERE';\nconst ENTRY_CLEANER_ID_HERE = 'ENTRY_CLEANER_ID_HERE';\n\nconst bookingUid = $json.bookingUid;\nconst cleanerId = $json.cleanerId;\nconst baseUrl = 'https://docs.google.com/forms/d/e/' + FORM_ID_HERE + '/viewform';\nconst bookingParam = ENTRY_BOOKING_UID_HERE + '=' + encodeURIComponent(bookingUid || '');\nconst cleanerParam = ENTRY_CLEANER_ID_HERE + '=' + encodeURIComponent(cleanerId || '');\nconst clockInLink = baseUrl + '?' + bookingParam + '&' + cleanerParam;\nreturn [{ json: { ...$input.first().json, clockInLink } }];"
+      },
+      "id": "generate-clockin-link-phase2",
+      "name": "Generate ClockIn Form Link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        320
+      ],
+      "notes": "Builds Google Form prefilled URL with bookingUid and cleanerId. Replace FORM_ID_HERE and ENTRY_* placeholders with real form/entry IDs."
+    },
+    {
+      "parameters": {
         "operation": "update",
         "documentId": {
           "__rl": true,
@@ -535,7 +549,9 @@
         },
         "start": "={{ $('Calculate Cleaning Time').item.json.startTime }}",
         "end": "={{ $('Calculate Cleaning Time').item.json.endTime }}",
-        "additionalFields": {}
+        "additionalFields": {
+          "description": "={{ (($('Calculate Cleaning Time').item.json.description || '') ? ($('Calculate Cleaning Time').item.json.description + '\\n\\n') : '') + 'Clock-In Link:\\n' + ($('Generate ClockIn Form Link').item.json.clockInLink || '') }}"
+        }
       },
       "id": "400f91f7-71d5-4482-9a2a-b190426679fb",
       "name": "Create Cleaner Calendar Event",
@@ -551,7 +567,7 @@
           "name": "Google Calendar account"
         }
       },
-      "notes": "Cleaner's calendar. Event ID from response is saved to sheet in next node."
+      "notes": "Cleaner's calendar. Event ID from response is saved to sheet in next node. Description includes Clock-In Form link."
     },
     {
       "parameters": {
@@ -809,7 +825,7 @@
         "sendTo": "={{ $('Assign Cleaner').item.json.cleanerEmail }}",
         "subject": "=New Cleaning Assigned – {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}",
         "emailType": "text",
-        "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}\nAddress: {{ $('Calculate Cleaning Time').last().json.address || 'Not provided' }}\nDate: {{ DateTime.fromISO( $('Calculate Cleaning Time').item.json.startTime).toFormat('yyyy-MM-dd HH:mm:ss') }}\n\nTime: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime).toFormat('HH:mm') }}\nGuest Count: {{ $('Assign Cleaner').item.json.adultCount + $('Assign Cleaner').item.json.childrenCount }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created – check your calendar' }}\n\nThis email serves as official assignment confirmation.",
+        "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}\nAddress: {{ $('Calculate Cleaning Time').last().json.address || 'Not provided' }}\nDate: {{ DateTime.fromISO( $('Calculate Cleaning Time').item.json.startTime).toFormat('yyyy-MM-dd HH:mm:ss') }}\n\nTime: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime).toFormat('HH:mm') }}\nGuest Count: {{ $('Assign Cleaner').item.json.adultCount + $('Assign Cleaner').item.json.childrenCount }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created – check your calendar' }}\n\nClock-In Link:\n{{ $('Generate ClockIn Form Link').item.json.clockInLink }}\n\nThis email serves as official assignment confirmation.",
         "options": {}
       },
       "id": "835ddfb5-81cc-47cc-b326-32af6ae8734f",
@@ -930,7 +946,8 @@
             "status": "ASSIGNED",
             "calendarStatus": "CREATED",
             "calendarEventId": "={{ $('Update Job With Event Id').item.json.calendarEventId }}",
-            "calendarId": "={{ $json.cleanerCalendarId ?? '' }}"
+            "calendarId": "={{ $json.cleanerCalendarId ?? '' }}",
+            "clockInLink": "={{ $('Generate ClockIn Form Link').item.json.clockInLink }}"
           },
           "matchingColumns": [
             "bookingUid"
@@ -993,6 +1010,15 @@
             {
               "id": "calendarId",
               "displayName": "calendarId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clockInLink",
+              "displayName": "clockInLink",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1156,6 +1182,17 @@
       ]
     },
     "Assign Cleaner": {
+      "main": [
+        [
+          {
+            "node": "Generate ClockIn Form Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate ClockIn Form Link": {
       "main": [
         [
           {
