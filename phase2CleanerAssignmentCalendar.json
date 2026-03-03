@@ -3,13 +3,13 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "aea175e9-f19d-45f2-b523-d932663529cf",
+      "id": "2ca5afa0-6600-4a44-a2e8-0a6d1312f0f4",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -3088,
-        560
+        -3584,
+        336
       ],
       "notes": "Replace with Schedule Trigger (e.g. every 5 min) for production. Kept Manual for testing."
     },
@@ -29,17 +29,17 @@
         },
         "options": {}
       },
-      "id": "4f98f423-2d6f-427f-9c0d-617082da0ea7",
+      "id": "dddf6d8c-164d-4567-9c20-89afa22f9a77",
       "name": "Read CleanersProfile",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -2864,
-        560
+        -3360,
+        336
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -49,13 +49,13 @@
       "parameters": {
         "jsCode": "// Pass one item so Read Pending Cleaning Jobs runs once (CleanersProfile data is available via $('Read CleanersProfile').all() later).\nreturn [$input.first()];"
       },
-      "id": "90f2ab2e-c2ec-4e6e-be3b-406f991a03bb",
+      "id": "6a209c3e-d8f4-4025-991e-e8a4ce7c634a",
       "name": "Single Item for Read Jobs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2640,
-        560
+        -3136,
+        336
       ],
       "notes": "Outputs one item so downstream Read Pending Cleaning Jobs runs once. CleanersProfile rows are read once and referenced in Assign Cleaner."
     },
@@ -75,17 +75,17 @@
         },
         "options": {}
       },
-      "id": "006e0492-1232-4ea9-a837-a20a8a75d3c7",
+      "id": "1718731d-777a-455d-aeb9-4615169a9b42",
       "name": "Read Pending Cleaning Jobs",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -2416,
-        560
+        -2912,
+        336
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -95,13 +95,13 @@
       "parameters": {
         "jsCode": "// CleaningJobs sheet has 'status' (not cleaningStatus). Keep only PENDING, no cleaner assigned, no event yet, processingFlag empty (row-level lock).\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const j = item.json || {};\n  const status = (j.status ?? '').toString().trim();\n  const cleanerId = (j.cleanerId ?? '').toString().trim();\n  const hasEvent = (j.calendarEventId ?? '').toString().trim() !== '';\n  const processingFlag = (j.processingFlag ?? '').toString().trim();\n  return status === 'PENDING' && cleanerId === '' && !hasEvent && processingFlag === '';\n});\nreturn filtered;"
       },
-      "id": "bf424ca2-3bdc-4a40-9f8a-98c16ec3282a",
+      "id": "28d5f48a-b765-4aea-9158-863c47911e2c",
       "name": "Filter Pending Only",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2192,
-        560
+        -2688,
+        336
       ],
       "notes": "Ensures we only process PENDING + empty cleanerId. Skips if calendarEventId already set (no duplicate events)."
     },
@@ -109,13 +109,13 @@
       "parameters": {
         "jsCode": "// Attach CleanersProfile data to each job so Assign Cleaner can use it inside the loop (no $('Read CleanersProfile') in loop).\nlet profile = [];\ntry {\n  const node = $('Read CleanersProfile');\n  if (node && typeof node.all === 'function') profile = node.all();\n} catch (_) {}\nconst items = $input.all();\nreturn items.map(item => ({ json: { ...item.json, _cleanersProfile: Array.isArray(profile) ? profile : [] } }));"
       },
-      "id": "fbbbf048-7a3c-40e1-83dc-2362704fcb58",
+      "id": "fff79287-c128-43cf-a794-1e9645b04b04",
       "name": "Attach CleanersProfile",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1968,
-        560
+        -2464,
+        336
       ],
       "notes": "Runs once before loop. Attaches CleanersProfile rows to each item so Assign Cleaner can read them inside the loop."
     },
@@ -123,13 +123,13 @@
       "parameters": {
         "options": {}
       },
-      "id": "11f57d98-9d83-4668-ad1c-41f17f7f25f8",
+      "id": "11d29ebc-04dd-4cd8-8a9a-7e96c8044efe",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1744,
-        560
+        -2240,
+        336
       ],
       "notes": "Process one cleaning job at a time to avoid overwrites and allow clear error scope."
     },
@@ -157,17 +157,17 @@
         },
         "options": {}
       },
-      "id": "c007c9cf-a9f9-478f-bac4-1e17f7e71a0e",
+      "id": "954a4fac-19db-4974-bd84-3c50ba478673",
       "name": "Lookup Reservation",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -1296,
-        320
+        -1792,
+        96
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -177,13 +177,13 @@
       "parameters": {
         "jsCode": "// If Lookup returned 0 rows or empty row, use job only with fallbacks. Otherwise use first lookup row.\n// propertyName: use reservation lookup first; else get from CleanersProfile row matching propertyUid (column may be 'propertyName ' with space); else fallback to propertyUid.\nconst job = $('Split In Batches').last().json;\nconst items = $input.all();\nconst hasReservation = items.length > 0 && items[0].json?.bookingUid;\nconst lookup = hasReservation ? items[0].json : {};\nlet propertyName = (lookup.propertyName ?? '').toString().trim();\nif (!propertyName && Array.isArray(job._cleanersProfile)) {\n  const pu = (job.propertyUid ?? '').toString().trim();\n  const profileRow = job._cleanersProfile.find(r => {\n    const j = r?.json ?? r;\n    const uid = (j?.propertyUid ?? j?.['property UID'] ?? '').toString().trim();\n    return uid && uid === pu;\n  });\n  if (profileRow) {\n    const j = profileRow?.json ?? profileRow;\n    propertyName = (j?.['propertyName '] ?? j?.propertyName ?? '').toString().trim();\n  }\n}\nif (!propertyName) propertyName = (job.propertyUid ?? '').toString().trim();\nconst merged = { ...job, ...lookup, propertyName, address: lookup.address ?? job.address ?? 'Address TBD' };\nreturn [{ json: merged }];"
       },
-      "id": "6839ac62-3399-4b3e-be55-2c3944eaf314",
+      "id": "ff9f5ef2-b712-4c04-9e83-be36a135a699",
       "name": "Ensure One Item (Job or Reservation)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1072,
-        320
+        -1568,
+        96
       ],
       "notes": "When Lookup returns no row, pass job only with propertyName/address fallbacks so Assign Cleaner still runs."
     },
@@ -191,13 +191,13 @@
       "parameters": {
         "jsCode": "// Merge cleaning job (from Split In Batches) with reservation (from Ensure One Item).\nconst job = $('Split In Batches').last().json;\nconst lookup = $input.first().json;\nconst merged = { ...job, ...lookup };\nreturn [{ json: merged }];"
       },
-      "id": "aad24698-0b64-4629-ad2d-0016c24bd398",
+      "id": "b1d7eebb-120e-4eb3-84c9-41e2002c6183",
       "name": "Merge Job and Reservation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -848,
-        320
+        -1344,
+        96
       ],
       "notes": "One item: cleaning job + reservation fields for propertyName, address, etc."
     },
@@ -205,29 +205,29 @@
       "parameters": {
         "jsCode": "// STEP 2 — Assign cleaner by propertyUid using CleanersProfile data attached before the loop. Columns: property UID, cleaner ID, calendar ID, email, name, contact.\nconst item = $input.first().json;\nconst propertyUid = (item.propertyUid ?? '').toString().trim();\nconst rows = Array.isArray(item._cleanersProfile) ? item._cleanersProfile : [];\nif (rows.length === 0) throw new Error('No CleanersProfile data on item. Ensure Attach CleanersProfile node runs before Split In Batches and Read CleanersProfile has rows.');\nconst get = (row, ...keys) => { const j = row && (row.json !== undefined ? row.json : row); if (!j || typeof j !== 'object') return ''; for (const k of keys) { const v = j[k]; if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim(); } return ''; };\nconst mapping = rows.find(r => {\n  const uid = get(r, 'property UID', 'propertyUid');\n  return uid && uid === propertyUid;\n});\nif (!mapping) {\n  throw new Error(`No cleaner for propertyUid: ${propertyUid}. Add a row in CleanersProfile with property UID = ${propertyUid}.`);\n}\nconst cleanerId = get(mapping, 'cleaner ID', 'cleanerId');\nconst email = get(mapping, 'email');\nconst calendarId = get(mapping, 'calendar ID', 'calendarId');\nif (!cleanerId) throw new Error(`CleanersProfile row for ${propertyUid} has no cleaner ID.`);\nconst assignedAt = new Date().toISOString();\nconst propertyNameFromProfile = get(mapping, 'propertyName ', 'propertyName');\nconst out = { ...item, cleanerId, cleanerEmail: email || item.cleanerEmail, cleanerCalendarId: calendarId || item.cleanerCalendarId, cleanerName: get(mapping, 'name'), cleanerContact: get(mapping, 'contact'), assignedAt, status: 'ASSIGNED', propertyName: propertyNameFromProfile || item.propertyName || item.propertyUid };\ndelete out._cleanersProfile;\nreturn [{ json: out }];"
       },
-      "id": "54b637fe-f29e-438e-9412-f6e9c372b506",
+      "id": "017ffe2d-535d-4870-bd15-272a0f5f76fc",
       "name": "Assign Cleaner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        320
+        -1120,
+        96
       ],
       "notes": "Lookup from CleanersProfile sheet by property UID. Needs columns: property UID, cleaner ID, calendar ID, email, name, contact."
     },
     {
       "parameters": {
-        "jsCode": "// Form prefilled link constants (replace with real IDs when form is ready).\nconst FORM_ID_HERE = 'FORM_ID_HERE';\nconst ENTRY_BOOKING_UID_HERE = 'ENTRY_BOOKING_UID_HERE';\nconst ENTRY_CLEANER_ID_HERE = 'ENTRY_CLEANER_ID_HERE';\n\nconst bookingUid = $json.bookingUid;\nconst cleanerId = $json.cleanerId;\nconst baseUrl = 'https://docs.google.com/forms/d/e/' + FORM_ID_HERE + '/viewform';\nconst bookingParam = ENTRY_BOOKING_UID_HERE + '=' + encodeURIComponent(bookingUid || '');\nconst cleanerParam = ENTRY_CLEANER_ID_HERE + '=' + encodeURIComponent(cleanerId || '');\nconst clockInLink = baseUrl + '?' + bookingParam + '&' + cleanerParam;\nreturn [{ json: { ...$input.first().json, clockInLink } }];"
+        "jsCode": "// Form prefilled link constants for Cleaner Clock-In form.\nconst FORM_ID_HERE = '1FAIpQLSdN-PdIbE1d7ckJ1D7D-EM--sOyjMkUvBP5zFRbj__uM3l59w';\nconst ENTRY_BOOKING_UID_HERE = 'entry.1708588644';\nconst ENTRY_CLEANER_ID_HERE = 'entry.1912154425';\n\nconst bookingUid = $json.bookingUid;\nconst cleanerId = $json.cleanerId;\nconst baseUrl = 'https://docs.google.com/forms/d/e/' + FORM_ID_HERE + '/viewform';\nconst bookingParam = ENTRY_BOOKING_UID_HERE + '=' + encodeURIComponent(bookingUid || '');\nconst cleanerParam = ENTRY_CLEANER_ID_HERE + '=' + encodeURIComponent(cleanerId || '');\nconst clockInLink = baseUrl + '?' + bookingParam + '&' + cleanerParam;\nreturn [{ json: { ...$input.first().json, clockInLink } }];"
       },
-      "id": "generate-clockin-link-phase2",
+      "id": "eb2ce69e-718c-4d88-ba66-a5bec11431a9",
       "name": "Generate ClockIn Form Link",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -512,
-        320
+        -896,
+        96
       ],
-      "notes": "Builds Google Form prefilled URL with bookingUid and cleanerId. Replace FORM_ID_HERE and ENTRY_* placeholders with real form/entry IDs."
+      "notes": "Builds Google Form prefilled URL with bookingUid and cleanerId for the Cleaner Clock-In form."
     },
     {
       "parameters": {
@@ -448,17 +448,17 @@
         },
         "options": {}
       },
-      "id": "e9f590c4-3e5c-476c-a253-d6a467c6aab8",
+      "id": "26b8f6bb-1079-4f18-a9f3-40cdb718f052",
       "name": "Update Job Assigned",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -400,
-        320
+        -672,
+        96
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -468,13 +468,13 @@
       "parameters": {
         "jsCode": "// Strict UTC only. Use scheduledCleaningTimeUTC from the original job (Split In Batches), not from trimmed update output.\n// No 11:00 logic, no cleaningDate/checkOut fallbacks.\nconst DURATION_HOURS = 3;\n// Always pull the full job (with scheduledCleaningTimeUTC) from Split In Batches.\nconst job = (() => {\n  try {\n    const n = $('Split In Batches');\n    if (n && typeof n.last === 'function') {\n      const v = n.last().json;\n      if (v && typeof v === 'object') return v;\n    }\n  } catch (_) {}\n  const current = $input.first()?.json;\n  return current && typeof current === 'object' ? current : {};\n})();\nconst startTime = job.scheduledCleaningTimeUTC;\nif (!startTime || typeof startTime !== 'string' || startTime.trim() === '')\n  throw new Error('Missing scheduledCleaningTimeUTC');\nconst startDate = new Date(startTime.trim());\nif (isNaN(startDate.getTime()))\n  throw new Error('Invalid scheduledCleaningTimeUTC');\nconst endDate = new Date(startDate.getTime() + DURATION_HOURS * 3600 * 1000);\nconst endTime = endDate.toISOString();\n// Merge timing fields back onto the latest item in the chain so downstream nodes see them.\nconst base = $input.first()?.json || job;\nreturn [{ json: { ...base, startTime: startTime.trim(), endTime, durationHours: DURATION_HOURS } }];"
       },
-      "id": "61abba55-877c-47be-8fa3-012b9bab2ad6",
+      "id": "dbd86957-90b8-4391-8057-d73aa79f46de",
       "name": "Calculate Cleaning Time",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -176,
-        320
+        -448,
+        96
       ],
       "notes": "startTime = scheduledCleaningTimeUTC from original CleaningJobs row; endTime = startTime + 3h UTC. No 11:00, no legacy fields."
     },
@@ -502,13 +502,13 @@
         },
         "options": {}
       },
-      "id": "d2052567-1f79-45b1-9078-ba042b1aef24",
+      "id": "be5b6332-7260-4806-b77f-b1ebf475977b",
       "name": "Already Has Calendar Event?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        48,
-        320
+        -224,
+        96
       ],
       "notes": "TRUE = calendarEventId set → skip event creation (and notification). FALSE = create events + notify."
     },
@@ -524,17 +524,17 @@
         "end": "={{ $json.endTime }}",
         "additionalFields": {}
       },
-      "id": "9a252572-5b1c-411a-9ee6-ee1e59e19052",
+      "id": "c94719fa-a89e-462d-952b-b58c8dfb8ee3",
       "name": "Create Admin Calendar Event",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.2,
       "position": [
-        272,
-        224
+        0,
+        0
       ],
       "credentials": {
         "googleCalendarOAuth2Api": {
-          "id": "u0zJ9RMcwZ9KgjoO",
+          "id": "zieubUQMxpWLThGP",
           "name": "Google Calendar account"
         }
       },
@@ -553,17 +553,17 @@
           "description": "={{ (($('Calculate Cleaning Time').item.json.description || '') ? ($('Calculate Cleaning Time').item.json.description + '\\n\\n') : '') + 'Clock-In Link:\\n' + ($('Generate ClockIn Form Link').item.json.clockInLink || '') }}"
         }
       },
-      "id": "400f91f7-71d5-4482-9a2a-b190426679fb",
+      "id": "20ace0c9-23f8-420e-bba4-58c02040ca15",
       "name": "Create Cleaner Calendar Event",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.2,
       "position": [
-        496,
-        224
+        224,
+        0
       ],
       "credentials": {
         "googleCalendarOAuth2Api": {
-          "id": "u0zJ9RMcwZ9KgjoO",
+          "id": "zieubUQMxpWLThGP",
           "name": "Google Calendar account"
         }
       },
@@ -573,13 +573,13 @@
       "parameters": {
         "jsCode": "// Pass through job + calendar event id from cleaner event (for sheet update).\nconst job = $('Calculate Cleaning Time').last().json;\nconst eventResult = $input.first().json;\nconst eventId = eventResult?.id ?? eventResult?.data?.id ?? '';\nreturn [{ json: { ...job, calendarEventId: eventId } }];"
       },
-      "id": "ba6422fb-ef23-4bd3-9b8f-3e649447bdec",
+      "id": "94e866fc-61ba-41fa-9337-389778050fd7",
       "name": "Prepare Event Id for Sheet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        224
+        448,
+        0
       ],
       "notes": "Extracts event ID from Google Calendar create response. Cleaner calendar event ID is source of truth for link."
     },
@@ -804,17 +804,17 @@
         },
         "options": {}
       },
-      "id": "d0efa183-2b1c-478e-92b5-a962b5ecde41",
+      "id": "d421aa7f-2d4e-4f89-ba64-dc6eb772c58c",
       "name": "Update Job With Event Id",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        944,
-        224
+        672,
+        0
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -825,21 +825,21 @@
         "sendTo": "={{ $('Assign Cleaner').item.json.cleanerEmail }}",
         "subject": "=New Cleaning Assigned – {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}",
         "emailType": "text",
-        "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}\nAddress: {{ $('Calculate Cleaning Time').last().json.address || 'Not provided' }}\nDate: {{ DateTime.fromISO( $('Calculate Cleaning Time').item.json.startTime).toFormat('yyyy-MM-dd HH:mm:ss') }}\n\nTime: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime).toFormat('HH:mm') }}\nGuest Count: {{ $('Assign Cleaner').item.json.adultCount + $('Assign Cleaner').item.json.childrenCount }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created – check your calendar' }}\n\nClock-In Link:\n{{ $('Generate ClockIn Form Link').item.json.clockInLink }}\n\nThis email serves as official assignment confirmation.",
+        "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}\n\nDate: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime, { zone: 'utc' }).toFormat('yyyy-MM-dd') }}\n\nTime: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime, { zone: 'utc' }).toFormat('HH:mm') }} - {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.endTime, { zone: 'utc' }).toFormat('HH:mm') }}\n\nGuest Count: {{ $('Assign Cleaner').item.json.adultCount + $('Assign Cleaner').item.json.childrenCount }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created – check your calendar' }}\n\nClock-In Link:\n{{ $('Generate ClockIn Form Link').item.json.clockInLink }}\n\nThis email serves as official assignment confirmation.",
         "options": {}
       },
-      "id": "835ddfb5-81cc-47cc-b326-32af6ae8734f",
+      "id": "3e0627a8-440a-4238-935a-2740bb8abee2",
       "name": "Send Gmail to Cleaner",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1168,
-        224
+        896,
+        0
       ],
       "webhookId": "1a9edaf5-05fc-43a5-b167-dae117a87bc1",
       "credentials": {
         "gmailOAuth2": {
-          "id": "gBew8I7wXjZj6cXO",
+          "id": "6sr232YN6z3c4tiW",
           "name": "Gmail account"
         }
       },
@@ -847,13 +847,13 @@
     },
     {
       "parameters": {},
-      "id": "f5156b81-4626-4229-b92a-8e74c3331cd0",
+      "id": "d7f011fc-ce86-4041-96d0-f8b22bfbb9b1",
       "name": "Skip (Already Has Event)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        272,
-        416
+        0,
+        192
       ],
       "notes": "When calendarEventId already set: no duplicate event, no duplicate email. Rejoin loop."
     },
@@ -876,12 +876,23 @@
           "mappingMode": "defineBelow",
           "value": {
             "bookingUid": "={{ $json.bookingUid }}",
-            "processingFlag": "LOCKED"
+            "processingFlag": "LOCKED",
+            "row_number": 0
           },
           "matchingColumns": [
             "bookingUid"
           ],
           "schema": [
+            {
+              "id": "cleaningJobId",
+              "displayName": "cleaningJobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
             {
               "id": "bookingUid",
               "displayName": "bookingUid",
@@ -892,6 +903,156 @@
               "canBeUsedToMatch": true
             },
             {
+              "id": "propertyUid",
+              "displayName": "propertyUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleaningDate",
+              "displayName": "cleaningDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleaningTime",
+              "displayName": "cleaningTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "assignedCleaner",
+              "displayName": "assignedCleaner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clockIn",
+              "displayName": "clockIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clockOut",
+              "displayName": "clockOut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "workedHours",
+              "displayName": "workedHours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "createdAtSystem",
+              "displayName": "createdAtSystem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleanerId",
+              "displayName": "cleanerId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "assignedAt",
+              "displayName": "assignedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notificationStatus",
+              "displayName": "notificationStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "calendarStatus",
+              "displayName": "calendarStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "calendarEventId",
+              "displayName": "calendarEventId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "calendarId",
+              "displayName": "calendarId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
               "id": "processingFlag",
               "displayName": "processingFlag",
               "required": false,
@@ -899,6 +1060,87 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "clockInTimeUTC",
+              "displayName": "clockInTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsClockInLat",
+              "displayName": "gpsClockInLat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsClockInLng",
+              "displayName": "gpsClockInLng",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsStatus",
+              "displayName": "gpsStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lateFlag",
+              "displayName": "lateFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "checkoutTimeUTC",
+              "displayName": "checkoutTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scheduledCleaningTimeUTC",
+              "displayName": "scheduledCleaningTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -906,17 +1148,17 @@
         },
         "options": {}
       },
-      "id": "7519a69c-e6d3-4222-a32c-1a434fc852ae",
+      "id": "f85ef65f-1aeb-41ae-8ec1-3c96f6f8125f",
       "name": "Lock Cleaning Job",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -1520,
-        320
+        -2016,
+        96
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -947,12 +1189,22 @@
             "calendarStatus": "CREATED",
             "calendarEventId": "={{ $('Update Job With Event Id').item.json.calendarEventId }}",
             "calendarId": "={{ $json.cleanerCalendarId ?? '' }}",
-            "clockInLink": "={{ $('Generate ClockIn Form Link').item.json.clockInLink }}"
+            "processingFlag": " "
           },
           "matchingColumns": [
             "bookingUid"
           ],
           "schema": [
+            {
+              "id": "cleaningJobId",
+              "displayName": "cleaningJobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
             {
               "id": "bookingUid",
               "displayName": "bookingUid",
@@ -961,6 +1213,95 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "propertyUid",
+              "displayName": "propertyUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleaningDate",
+              "displayName": "cleaningDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cleaningTime",
+              "displayName": "cleaningTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assignedCleaner",
+              "displayName": "assignedCleaner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clockIn",
+              "displayName": "clockIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clockOut",
+              "displayName": "clockOut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "workedHours",
+              "displayName": "workedHours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "createdAtSystem",
+              "displayName": "createdAtSystem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
             },
             {
               "id": "cleanerId",
@@ -981,13 +1322,14 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "status",
-              "displayName": "status",
+              "id": "notificationStatus",
+              "displayName": "notificationStatus",
               "required": false,
               "defaultMatch": false,
               "display": true,
               "type": "string",
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "removed": false
             },
             {
               "id": "calendarStatus",
@@ -1017,15 +1359,6 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "clockInLink",
-              "displayName": "clockInLink",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
               "id": "processingFlag",
               "displayName": "processingFlag",
               "required": false,
@@ -1033,6 +1366,87 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "clockInTimeUTC",
+              "displayName": "clockInTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsClockInLat",
+              "displayName": "gpsClockInLat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsClockInLng",
+              "displayName": "gpsClockInLng",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsStatus",
+              "displayName": "gpsStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lateFlag",
+              "displayName": "lateFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "checkoutTimeUTC",
+              "displayName": "checkoutTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scheduledCleaningTimeUTC",
+              "displayName": "scheduledCleaningTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -1040,17 +1454,17 @@
         },
         "options": {}
       },
-      "id": "a4b01863-57bb-46f5-941f-9f893ccb6664",
+      "id": "82045f92-cf62-4189-b333-c53af03f7bef",
       "name": "Finalize Assignment",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        1392,
-        392
+        1120,
+        176
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -1327,11 +1741,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "9a6855b0-9002-41c5-afc5-79c7f5091aad",
+  "versionId": "837da3cf-31cd-4aea-9419-0e6675896140",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
+    "instanceId": "6a182e137b0efa52bc5ca70ffff0b22c853fa1e0bdd46efb5c0d20201c291f2e"
   },
-  "id": "9vDem5tE8Vz67m2x",
+  "id": "AU1w579al67hGom7",
   "tags": []
 }

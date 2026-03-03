@@ -1,57 +1,7 @@
-Assign Cleaner(output)
-
-[
-  {
-    "row_number": 2,
-    "cleaningJobId": "0ca0054d-c89c-4f01-99c5-33bc2a7fb9f4_CLEAN",
-    "bookingUid": "0ca0054d-c89c-4f01-99c5-33bc2a7fb9f4",
-    "propertyUid": "996b0202-6422-45f0-9244-c4060afb8035",
-    "cleaningDate": "2026-06-24T10:00:00-05:00",
-    "cleaningTime": "2026-06-24T10:00:00-05:00",
-    "status": "ASSIGNED",
-    "assignedCleaner": "",
-    "clockIn": "",
-    "clockOut": "",
-    "workedHours": "",
-    "createdAtSystem": "2026-03-02T23:26:53.033+05:00",
-    "cleanerId": "iwshwh38e8jsij28e892js21j2",
-    "assignedAt": "2026-03-02T18:30:43.364Z",
-    "notificationStatus": "",
-    "calendarStatus": "",
-    "calendarEventId": "",
-    "calendarId": "",
-    "processingFlag": "",
-    "clockInTimeUTC": "",
-    "gpsClockInLat": "",
-    "gpsClockInLng": "",
-    "gpsStatus": "",
-    "lateFlag": "",
-    "checkoutTimeUTC": "2026-06-24T15:00:00.000Z",
-    "scheduledCleaningTimeUTC": "2026-06-24T15:00:00.000Z",
-    "guestName": "Rodgers Sheridan",
-    "checkIn": "2026-06-20 16:00:00",
-    "checkOut": "2026-06-24 10:00:00",
-    "adultCount": 8,
-    "source": "BOOKING_COM",
-    "createdUtc": "2026-03-02 16:44:46",
-    "cleaningStatus": "PENDING",
-    "childrenCount": 0,
-    "maintenanceStatus": "NONE",
-    "payrollStatus": "NOT_STARTED",
-    "propertyName": "120 Opry House",
-    "address": "Address TBD",
-    "cleanerEmail": "nomiads222@gmail.com",
-    "cleanerCalendarId": "nomiads222@gmail.com",
-    "cleanerName": "nouman",
-    "cleanerContact": ""
-  }
-]
-
-Update Job Assigned(output)
-[
-  {
-    "bookingUid": "0ca0054d-c89c-4f01-99c5-33bc2a7fb9f4",
-    "cleanerId": "iwshwh38e8jsij28e892js21j2",
-    "assignedAt": "2026-03-02T18:30:43.364Z"
-  }
-]
+cleaningJobId	bookingUid	propertyUid	cleaningDate	cleaningTime	status	assignedCleaner	clockIn	clockOut	workedHours	createdAtSystem	cleanerId	assignedAt	notificationStatus	calendarStatus	calendarEventId	calendarId	processingFlag	clockInTimeUTC	gpsClockInLat	gpsClockInLng	gpsStatus	lateFlag	checkoutTimeUTC	scheduledCleaningTimeUTC
+0ca0054d-c89c-4f01-99c5-33bc2a7fb9f4_CLEAN	0ca0054d-c89c-4f01-99c5-33bc2a7fb9f4	996b0202-6422-45f0-9244-c4060afb8035	2026-06-24T10:00:00-05:00	2026-06-24T10:00:00-05:00	ASSIGNED					2026-03-02T18:26:53.904Z	iwshwh38e8jsij28e892js21j2	2026-03-02T18:48:12.582Z		CREATED	4erdov4tputpcm19r7bs9svs78		LOCKED						2026-06-24T15:00:00.000Z	2026-06-24T15:00:00.000Z
+e1ec50b4-5619-4357-a309-2a4d1d79c83b_CLEAN	e1ec50b4-5619-4357-a309-2a4d1d79c83b	33f964cf-2531-47f8-8133-fd501e9f6814	2026-04-02T10:00:00-05:00	2026-04-02T10:00:00-05:00	ASSIGNED					2026-03-02T18:26:58.719Z	218jieksiei20iw0-ks2kwi219	2026-03-02T18:48:18.469Z		CREATED	a2qv3u5vl6mq3vrnocobpkr0jg		LOCKED						2026-04-02T15:00:00.000Z	2026-04-02T15:00:00.000Z
+d15c1f42-6e88-407f-923b-29ab46deb467_CLEAN	d15c1f42-6e88-407f-923b-29ab46deb467	6301ad7e-6d32-426a-8aef-daa74978f911	2026-09-10T10:00:00-05:00	2026-09-10T10:00:00-05:00	ASSIGNED					2026-03-02T18:27:04.562Z	iwshwh3eeeesij28e892js21j2	2026-03-03T14:20:58.628Z		CREATED	nrkic3j6h7bekij5mc99vq46b4		LOCKED						2026-09-10T15:00:00.000Z	2026-09-10T15:00:00.000Z
+35e1de36-f271-433d-aa1e-29c0c32f2377_CLEAN	35e1de36-f271-433d-aa1e-29c0c32f2377	996b0202-6422-45f0-9244-c4060afb8035	2026-03-04T10:00:00-06:00	2026-03-04T10:00:00-06:00	ASSIGNED					2026-03-02T18:27:10.938Z	iwshwh38e8jsij28e892js21j2	2026-03-03T14:21:10.401Z		CREATED	re6fiep5idfrqgsgktt8ijkbak		LOCKED						2026-03-04T16:00:00.000Z	2026-03-04T16:00:00.000Z
+																								
+																								
