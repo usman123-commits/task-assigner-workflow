@@ -1,0 +1,219 @@
+{
+  "name": "Workflow 3 – Form Responses 1 to ClockInSubmissions",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2132726156,
+          "mode": "list",
+          "cachedResultName": "Raw Form Responses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit#gid=2132726156"
+        },
+        "options": {}
+      },
+      "id": "cba3e4f0-11ef-4d32-8bc7-6f65b743f3a6",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        160
+      ],
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "E2pL4RCwwnxZSv1L",
+          "name": "Google Sheets Trigger account"
+        }
+      },
+      "notes": "Trigger on: Row Added. Sheet: Form Responses 1."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ParseAndValidate: extract from Form Responses 1 (keys may have spaces). Validate, parse lat/lng from URL or DMS.\nconst item = $input.first().json;\nconst get = (name) => {\n  const v = item[name];\n  if (v !== undefined && v !== null) return v;\n  const key = Object.keys(item).find(k => k.trim() === name);\n  return key !== undefined ? item[key] : undefined;\n};\nconst bookingUid = get('Booking ID');\nconst cleanerId = get('Cleaner ID');\nconst confirmArrival = (get('Confirm Arrival') ?? '').toString().trim();\nconst mapsLink = (get('Capture Location') ?? '').toString().trim();\nconst rawTimestamp = get('Timestamp');\n\nif (!confirmArrival || confirmArrival.toLowerCase() !== 'yes')\n  throw new Error('Arrival not confirmed');\nif (!mapsLink)\n  throw new Error('Location link missing');\n\nlet parsedLatitude, parsedLongitude;\nconst latLngRegex = /(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)/;\nconst match = mapsLink.match(latLngRegex);\nif (match) {\n  parsedLatitude = match[1];\n  parsedLongitude = match[2];\n} else {\n  const dmsRegex = /(\\d+)[°º]\\s*(\\d+)['′]\\s*([\\d.]+)[\"″]?\\s*([NS])\\s*(\\d+)[°º]\\s*(\\d+)['′]\\s*([\\d.]+)[\"″]?\\s*([EW])/i;\n  const dms = mapsLink.match(dmsRegex);\n  if (!dms) throw new Error('Invalid Google Maps link format');\n  const latDeg = parseInt(dms[1],10); const latMin = parseInt(dms[2],10); const latSec = parseFloat(dms[3]); const latSign = dms[4].toUpperCase() === 'S' ? -1 : 1;\n  const lngDeg = parseInt(dms[5],10); const lngMin = parseInt(dms[6],10); const lngSec = parseFloat(dms[7]); const lngSign = dms[8].toUpperCase() === 'W' ? -1 : 1;\n  parsedLatitude = String(latSign * (latDeg + latMin/60 + latSec/3600));\n  parsedLongitude = String(lngSign * (lngDeg + lngMin/60 + lngSec/3600));\n}\n\nreturn [{\n  json: {\n    bookingUid,\n    cleanerId,\n    gpsLat: parsedLatitude,\n    gpsLng: parsedLongitude,\n    submissionTimestamp: new Date().toISOString(),\n    processingStatus: 'PENDING',\n    resultMessage: '',\n    processedAt: ''\n  }\n}];"
+      },
+      "id": "e6c91ce5-5361-4389-8b57-8e6cd720b3b1",
+      "name": "ParseAndValidate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        160
+      ],
+      "notes": "Extract fields, validate arrival and location, parse lat/lng from maps link, return structured object."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "ClockInSubmissions",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "cleanerId": "={{ $json.cleanerId }}",
+            "gpsLat": "={{ $json.gpsLat }}",
+            "gpsLng": "={{ $json.gpsLng }}",
+            "submissionTimestamp": "={{ $json.submissionTimestamp }}",
+            "processingStatus": "={{ $json.processingStatus }}",
+            "resultMessage": "={{ $json.resultMessage }}",
+            "processedAt": "={{ $json.processedAt }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "bookingUid",
+              "displayName": "bookingUid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cleanerId",
+              "displayName": "cleanerId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gpsLat",
+              "displayName": "gpsLat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gpsLng",
+              "displayName": "gpsLng",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submissionTimestamp",
+              "displayName": "submissionTimestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processingStatus",
+              "displayName": "processingStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resultMessage",
+              "displayName": "resultMessage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processedAt",
+              "displayName": "processedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "65af13a6-e875-426e-9204-ed3c8189b5bc",
+      "name": "Insert Structured Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Append one row to ClockInSubmissions with exact column mapping."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "ParseAndValidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParseAndValidate": {
+      "main": [
+        [
+          {
+            "node": "Insert Structured Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "30c007c6-da9a-4eb0-8817-273b539ce2a7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a182e137b0efa52bc5ca70ffff0b22c853fa1e0bdd46efb5c0d20201c291f2e"
+  },
+  "id": "ieebrbqVyvQwb0ig",
+  "tags": []
+}

@@ -1,0 +1,333 @@
+{
+  "name": "Workflow 3B - ClockIn Validation Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 1 }
+          ]
+        }
+      },
+      "id": "schedule-trigger-3b",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300],
+      "notes": "Runs every minute. For 'Row Updated' use Google Sheets Trigger on ClockInSubmissions if available."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": { "__rl": true, "value": "ClockInSubmissions", "mode": "name" },
+        "options": {}
+      },
+      "id": "read-submissions",
+      "name": "Read ClockInSubmissions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [220, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } },
+      "notes": "Read all rows. Next node filters to processingStatus = PENDING only."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Only continue if processingStatus = PENDING (per spec).\nconst items = $input.all();\nconst pending = items.filter(i => (i.json?.processingStatus ?? '').toString().trim() === 'PENDING');\nreturn pending.length ? pending : [];"
+      },
+      "id": "filter-pending",
+      "name": "Only PENDING",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300],
+      "notes": "Only continue if processingStatus = PENDING."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": { "__rl": true, "value": "CleaningJobs", "mode": "name" },
+        "filtersUI": {
+          "values": [
+            { "lookupColumn": "bookingUid", "lookupValue": "={{ $json.bookingUid }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-booking",
+      "name": "Get Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [660, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } },
+      "notes": "Lookup CleaningJobs by bookingUid."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge each submission with its Get Booking result (same index).\nconst pendingItems = $('Only PENDING').all();\nconst jobItems = $input.all();\nreturn jobItems.map((jobItem, i) => {\n  const submission = pendingItems[i]?.json || {};\n  const job = jobItem.json || {};\n  return { json: { ...submission, ...job } };\n});"
+      },
+      "id": "merge-submission-job",
+      "name": "Merge Submission and Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300],
+      "notes": "Combine submission + CleaningJobs row for cleaner validation."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "cleaner-match",
+              "leftValue": "={{ $json.cleanerId }}",
+              "rightValue": "={{ $json.assignedCleanerId }}",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate-cleaner",
+      "name": "Validate Cleaner Assignment",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "notes": "TRUE = cleaner assigned to booking; FALSE = reject and stop."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": { "__rl": true, "value": "ClockInSubmissions", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "processingStatus": "REJECTED",
+            "resultMessage": "Cleaner not assigned to this booking",
+            "processedAt": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "processingStatus", "displayName": "processingStatus", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "resultMessage", "displayName": "resultMessage", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "processedAt", "displayName": "processedAt", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false }
+          ]
+        },
+        "options": {}
+      },
+      "id": "reject-cleaner-not-assigned",
+      "name": "Reject Cleaner Not Assigned",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1320, 180],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } },
+      "notes": "Set processingStatus=REJECTED, resultMessage, processedAt; then stop."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass through TRUE-branch items so Merge Coords can reference them reliably.\nreturn $input.all();"
+      },
+      "id": "pass-true-items",
+      "name": "Pass TRUE items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1210, 360],
+      "notes": "Holds only TRUE-branch items for combine-by-position in Merge Coords."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine by position: submission+job (Pass TRUE items) with coords (Get Property Coordinates).\nconst submissionItems = $('Pass TRUE items').all();\nconst coordsItems = $('Get Property Coordinates').all();\nconst len = Math.min(submissionItems.length, coordsItems.length);\nif (len === 0) return [];\nconst out = [];\nfor (let i = 0; i < len; i++) {\n  const sub = submissionItems[i]?.json || {};\n  const coord = coordsItems[i]?.json || {};\n  out.push({ json: { ...sub, ...coord } });\n}\nreturn out;"
+      },
+      "id": "merge-coords-submission",
+      "name": "Merge Coords with Submission",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 360],
+      "notes": "Combine by position: TRUE-branch (submission+job) + coords for distance calc."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": { "__rl": true, "value": "CleanersProfile", "mode": "name" },
+        "filtersUI": {
+          "values": [
+            { "lookupColumn": "cleanerId", "lookupValue": "={{ $json.cleanerId }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-property-coords",
+      "name": "Get Property Coordinates",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1320, 420],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } },
+      "notes": "Lookup CleanersProfile by cleanerId (column exists in sheet); returns latitude, longitude."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Haversine distance in meters. Input = Merge output (submission+job+coords combined by position).\nconst items = $input.all();\nconst R = 6371000;\nconst toRad = deg => deg * (Math.PI / 180);\nreturn items.map(item => {\n  const j = item.json || {};\n  const userLat = parseFloat(j.gpsLat);\n  const userLng = parseFloat(j.gpsLng);\n  const propertyLat = parseFloat(j.latitude);\n  const propertyLng = parseFloat(j.longitude);\n  let distance = NaN;\n  if (Number.isFinite(userLat) && Number.isFinite(userLng) && Number.isFinite(propertyLat) && Number.isFinite(propertyLng)) {\n    const dLat = toRad(propertyLat - userLat);\n    const dLng = toRad(propertyLng - userLng);\n    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(userLat))*Math.cos(toRad(propertyLat))*Math.sin(dLng/2)*Math.sin(dLng/2);\n    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n    distance = R * c;\n  }\n  return { json: { ...j, distance: Number.isFinite(distance) ? distance : 999999 } };\n});"
+      },
+      "id": "distance-calculation",
+      "name": "DistanceCalculation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 420],
+      "notes": "Haversine: user lat/lng vs property lat/lng; return distance in meters."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "inside-radius",
+              "leftValue": "={{ $json.distance }}",
+              "rightValue": 100,
+              "operator": { "type": "number", "operation": "lte" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "radius-check",
+      "name": "Radius Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1760, 420],
+      "notes": "TRUE = inside 100m → APPROVED; FALSE = outside → REJECTED."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": { "__rl": true, "value": "ClockInSubmissions", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "processingStatus": "APPROVED",
+            "resultMessage": "Clock-in successful",
+            "processedAt": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "processingStatus", "displayName": "processingStatus", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "resultMessage", "displayName": "resultMessage", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "processedAt", "displayName": "processedAt", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-approved",
+      "name": "Update APPROVED",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1980, 320],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } },
+      "notes": "processingStatus=APPROVED, resultMessage=Clock-in successful, processedAt."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": { "__rl": true, "value": "ClockInSubmissions", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $json.bookingUid }}",
+            "processingStatus": "REJECTED",
+            "resultMessage": "Cleaner outside allowed 100m radius",
+            "processedAt": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "processingStatus", "displayName": "processingStatus", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "resultMessage", "displayName": "resultMessage", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "processedAt", "displayName": "processedAt", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-rejected-radius",
+      "name": "Update REJECTED (radius)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1980, 520],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "6WzYJIrG1pOhcusY", "name": "Google Sheets account" } },
+      "notes": "processingStatus=REJECTED, resultMessage outside 100m, processedAt."
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Read ClockInSubmissions", "type": "main", "index": 0 }]] },
+    "Read ClockInSubmissions": { "main": [[{ "node": "Only PENDING", "type": "main", "index": 0 }]] },
+    "Only PENDING": { "main": [[{ "node": "Get Booking", "type": "main", "index": 0 }]] },
+    "Get Booking": { "main": [[{ "node": "Merge Submission and Job", "type": "main", "index": 0 }]] },
+    "Merge Submission and Job": { "main": [[{ "node": "Validate Cleaner Assignment", "type": "main", "index": 0 }]] },
+    "Validate Cleaner Assignment": {
+      "main": [
+        [{ "node": "Reject Cleaner Not Assigned", "type": "main", "index": 0 }],
+        [{ "node": "Get Property Coordinates", "type": "main", "index": 0 }, { "node": "Pass TRUE items", "type": "main", "index": 0 }]
+      ]
+    },
+    "Reject Cleaner Not Assigned": { "main": [] },
+    "Pass TRUE items": { "main": [] },
+    "Get Property Coordinates": { "main": [[{ "node": "Merge Coords with Submission", "type": "main", "index": 0 }]] },
+    "Merge Coords with Submission": { "main": [[{ "node": "DistanceCalculation", "type": "main", "index": 0 }]] },
+    "DistanceCalculation": { "main": [[{ "node": "Radius Check", "type": "main", "index": 0 }]] },
+    "Radius Check": {
+      "main": [
+        [{ "node": "Update APPROVED", "type": "main", "index": 0 }],
+        [{ "node": "Update REJECTED (radius)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update APPROVED": { "main": [] },
+    "Update REJECTED (radius)": { "main": [] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false },
+  "tags": []
+}
