@@ -40,7 +40,7 @@ Create a structured record in Google Sheets (reservation tab).
 - guestName
 - adultCount
 - source
-- createdUtcDateTime
+- createdUtc
 - cleaningStatus = "PENDING"
 - maintenanceStatus = "NONE"
 - payrollStatus = "NOT_STARTED"
@@ -57,15 +57,16 @@ Create entry in cleaning_job tab.
 
 - bookingUid
 - propertyUid
-- cleaningDate = checkOut
-- cleaningStartTime = 11:00 AM (fixed window)
-- cleaningDuration = 3 hours (configurable)
-- cleaningStatus = "PENDING"
+- cleaningDate / cleaningTime = checkout datetime from Hostfully (stored for display/tracing)
+- checkoutTimeUTC = checkout time in UTC ISO (used for Phase 3 clock-in gating/validations)
+- scheduledCleaningTimeUTC = scheduled cleaning start in UTC ISO (currently equals checkoutTimeUTC)
+- durationHours = 3 hours (current default used by Phase 2 calendar time window)
+- status = "PENDING"
 - cleanerId = empty
 - assignedAt = empty
 - calendarEventId = empty
-- clockInTime = empty
-- clockOutTime = empty
+- clockInTimeUTC = empty (actual clock-in will be written in Phase 3.1)
+- clockOutTimeUTC = (NOT IMPLEMENTED YET – will be written in Phase 3.2)
 
 Still internal only.
 No calendar.
@@ -84,8 +85,10 @@ Google Sheets remains source of truth.
 
 **Trigger when:**
 
-- cleaningStatus = "PENDING"
+- status = "PENDING"
 - AND cleanerId is empty
+- AND calendarEventId is empty
+- AND processingFlag is empty (row-level lock)
 
 System polls cleaning_job tab.
 
@@ -107,7 +110,8 @@ For now: static mapping.
 
 - cleanerId
 - assignedAt = current UTC timestamp
-- cleaningStatus = "ASSIGNED"
+- status becomes "ASSIGNED" after calendar + email succeeds (finalize step)
+- clockInLink is generated and stored for Phase 3.1
 
 ## Step 2.3 – Create Calendar Events (One-Way Sync)
 
@@ -116,19 +120,12 @@ Create two events:
 - Master Admin Calendar (your account)
 - Cleaner-specific calendar (owned by you, shared as view-only)
 
-**Event title format:**
-Cleaning – [Property Name] – [Guest Name]
+**Calendar purpose:** visualization only (not used for clock-in / status).
 
-**Event description:**
+Start: scheduledCleaningTimeUTC  
+End: start + 3 hours
 
-- Property
-- Full Address
-- Guest Count
-- Booking Reference ID
-- Internal Notes
-
-Start: cleaningStartTime
-End: cleaningStartTime + duration
+**Event description:** the workflow appends a "Clock-In Link" section containing the Google Form prefilled URL.
 
 **Store:**
 calendarEventId (from cleaner calendar)
@@ -153,6 +150,7 @@ New Cleaning Assigned – [Property Name]
 - Guest Count
 - Booking Reference
 - Calendar Event Link
+- Clock-In Link (Google Form)
 
 This acts as:
 
@@ -178,44 +176,50 @@ Cleaner opens Google Form link.
 
 **Form collects:**
 
+- Booking ID (pre-filled)
 - Cleaner ID (pre-filled)
-- Booking UID (hidden/pre-filled)
-- Start Cleaning button
+- Confirm Arrival (must be "Yes")
+- Capture Location (Google Maps link or coordinates captured by the device/form)
 
 **System captures:**
 
-- Timestamp
-- GPS location (via form or web app)
+- Form submission timestamp (from the raw response row)
+- GPS location from "Capture Location"
 
-**Validation:**
-Location must be within X meters of property address.
+**Processing pipeline (current implementation):**
+
+- Workflow 3 listens to new rows in `Form Responses 1`, validates required fields, extracts lat/lng, and appends a normalized row into `ClockInSubmissions` with `processingStatus = PENDING`.
+- Workflow 3B polls `ClockInSubmissions` and processes only `PENDING` rows:
+  - Validates the cleaner is assigned to the booking (by comparing submission `cleanerId` with the assigned `cleanerId` in `CleaningJobs` for the same `bookingUid`).
+  - Validates GPS radius (≤ 100m) using property coordinates (currently expected from `CleanersProfile` as `latitude` / `longitude`).
+  - If approved:
+    - Updates `ClockInSubmissions.processingStatus = APPROVED`, sets `processedAt`.
+    - Updates `CleaningJobs`:
+      - `status = IN_PROGRESS`
+      - `clockInTimeUTC = submissionTimestamp`
+      - `gpsClockInLat`, `gpsClockInLng`
+      - `gpsStatus = INSIDE_RADIUS`
+  - If rejected: updates `ClockInSubmissions.processingStatus = REJECTED` with a message and does not update `CleaningJobs`.
 
 **Store:**
 
-- clockInTime
-- clockInLat
-- clockInLng
+- clockInTimeUTC (actual)
+- gpsClockInLat / gpsClockInLng (actual)
 
 **Update:**
-cleaningStatus = "IN_PROGRESS"
+status = "IN_PROGRESS"
 
 ## Step 3.2 – Finish Cleaning (Clock Out)
 
-Cleaner submits Finish Form.
+⚠️ Not implemented yet.
 
-**System captures:**
+We still need a dedicated workflow for clock-out handling (Phase 3.2). This will likely mirror clock-in:
 
-- Timestamp
-- GPS
-
-**Store:**
-
-- clockOutTime
-- clockOutLat
-- clockOutLng
-
-**Update:**
-cleaningStatus = "COMPLETED"
+- Accept a clock-out form submission (bookingUid, cleanerId, GPS)
+- Validate cleaner assignment
+- (Optional) validate radius
+- Write `clockOutTimeUTC`, `gpsClockOutLat`, `gpsClockOutLng`
+- Update `status = COMPLETED`
 
 Now you have verified job duration.
 
@@ -226,7 +230,7 @@ Now you have verified job duration.
 We do NOT directly trust calendar duration.
 
 **We calculate:**
-workedHours = clockOutTime – clockInTime
+workedHours = clockOutTimeUTC – clockInTimeUTC
 
 **Store:**
 

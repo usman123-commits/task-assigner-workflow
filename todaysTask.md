@@ -1,12 +1,5 @@
-1-update workflow 1 to send gmail with start and end time in UTC
-
-2-Cleaner opens Google Maps → Share location → paste link.Workflow extracts lat/lng from link.User can also paste wrong location we can use app instead of it other wise it needs scripting 
-You can attach Apps Script to the form
-to auto-capture browser geolocation.
-
-BUT:
-Requires script permissions
-Requires domain configuration
-Can break on mobile browsers
-
-3- when triggerring workflow Processing may take 30–60 seconds because Google Sheets trigger polls.
+Cleaners can send location in any of these ways:
+Short link (e.g. https://maps.app.goo.gl/csTJxy6d2wcJSA6B9) → resolved via HTTP Request and coordinates parsed from the response.
+Full Google Maps URL with coordinates (e.g. https://www.google.com/maps?q=33.68,73.15).
+Plain lat,lng (e.g. 33.682871,73.155155).
+DMS (e.g. 33°52'07.7"N 73°09'18.6"E)

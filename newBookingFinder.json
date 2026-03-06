@@ -135,6 +135,36 @@
               "removed": false
             },
             {
+              "id": "childrenCount",
+              "displayName": "childrenCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "maintenanceStatus",
+              "displayName": "maintenanceStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "payrollStatus",
+              "displayName": "payrollStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
               "id": "row_number",
               "displayName": "row_number",
               "required": false,
@@ -151,17 +181,17 @@
         },
         "options": {}
       },
-      "id": "ffea42bf-bac0-4350-b089-533d38ac8aec",
+      "id": "a3b020e3-ded4-48f9-8905-6f0bc3cd1a88",
       "name": "Update Reservation with Cleaning Job ID",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        832,
-        328
+        3584,
+        496
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       }
@@ -192,18 +222,7 @@
             "checkoutTimeUTC": "={{ $json.checkoutTimeUTC }}",
             "scheduledCleaningTimeUTC": "={{ $json.scheduledCleaningTimeUTC }}",
             "status": "PENDING",
-            "assignedCleaner": "",
-            "clockIn": "",
-            "clockOut": "",
-            "workedHours": "",
-            "createdAtSystem": "={{ $json.createdAtSystem }}",
-            "cleanerId": "",
-            "assignedAt": "",
-            "notificationStatus": "",
-            "calendarStatus": "",
-            "calendarEventId": "",
-            "calendarId": "",
-            "processingFlag": ""
+            "createdAtSystem": "={{ $json.createdAtSystem }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -251,24 +270,6 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
-            },
-            {
-              "id": "checkoutTimeUTC",
-              "displayName": "checkoutTimeUTC",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "scheduledCleaningTimeUTC",
-              "displayName": "scheduledCleaningTimeUTC",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
             },
             {
               "id": "status",
@@ -386,6 +387,74 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "clockInTimeUTC",
+              "displayName": "clockInTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsClockInLat",
+              "displayName": "gpsClockInLat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsClockInLng",
+              "displayName": "gpsClockInLng",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gpsStatus",
+              "displayName": "gpsStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lateFlag",
+              "displayName": "lateFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "checkoutTimeUTC",
+              "displayName": "checkoutTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scheduledCleaningTimeUTC",
+              "displayName": "scheduledCleaningTimeUTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -393,17 +462,17 @@
         },
         "options": {}
       },
-      "id": "6a4bc2f0-0be0-407b-8da7-5e8a19b1fab1",
+      "id": "c9810025-ded5-4406-ac37-648a42c0360d",
       "name": "Create Cleaning Job Record",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        608,
-        160
+        3360,
+        320
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       }
@@ -412,13 +481,13 @@
       "parameters": {
         "jsCode": "// Strict UTC only. Only checkOutZonedDateTime from Hostfully. scheduledCleaningTimeUTC = checkoutTimeUTC.\nconst ZONED_REGEX = /[zZ]|[+-]\\d{2}:\\d{2}$/;\nconst j = $input.first().json;\n// Always read the zoned checkout from Merge Lead and Lookup so we keep the Hostfully field\n// even when this node is reached via Create Reservation Record.\nconst lead = (() => {\n  try {\n    const n = $('Merge Lead and Lookup');\n    if (n && typeof n.last === 'function') {\n      const v = n.last().json;\n      if (v && typeof v === 'object') return v;\n    }\n  } catch (_) {}\n  return j || {};\n})();\nconst bookingUid = lead?.uid || lead?.bookingUid || j?.uid || j?.bookingUid || '';\nconst cleaningJobId = bookingUid ? bookingUid + '_CLEAN' : '';\nconst rawCheckout = lead?.checkOutZonedDateTime;\nif (!rawCheckout || typeof rawCheckout !== 'string' || rawCheckout.trim() === '')\n  throw new Error('Missing required column configuration: checkout time not provided');\nconst s = rawCheckout.trim();\nif (!ZONED_REGEX.test(s))\n  throw new Error('Invalid checkout time: timezone offset or Z required');\nconst checkoutDate = new Date(s);\nif (isNaN(checkoutDate.getTime()))\n  throw new Error('Invalid checkout time: cannot parse date');\nconst checkoutTimeUTC = checkoutDate.toISOString();\nconst scheduledCleaningTimeUTC = checkoutTimeUTC;\nconst dateTime = s;\nreturn [{ json: { cleaningJobId, bookingUid, propertyUid: lead?.propertyUid ?? j?.propertyUid ?? '', cleaningDate: dateTime, cleaningTime: dateTime, checkoutTimeUTC, scheduledCleaningTimeUTC, status: 'PENDING', assignedCleaner: '', clockIn: '', clockOut: '', workedHours: '', createdAtSystem: new Date().toISOString() } }];"
       },
-      "id": "1480f9f3-92a0-42b6-9b4f-52fc27b93a31",
+      "id": "8238de21-a6c7-4d16-945d-f8d9a367ca7b",
       "name": "Prepare Cleaning Job Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        384,
-        160
+        3136,
+        320
       ]
     },
     {
@@ -588,17 +657,17 @@
         },
         "options": {}
       },
-      "id": "16a817f9-d3b6-4aa6-8a90-468694a424b9",
+      "id": "43a7ec55-1cad-425b-b6da-0d5fcd5ad651",
       "name": "Create Reservation Record",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        160,
-        64
+        2912,
+        224
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       }
@@ -627,13 +696,13 @@
         },
         "options": {}
       },
-      "id": "279b952a-b35e-4284-b6da-20200551109a",
+      "id": "e09deb30-e621-43e9-a2b7-39ff9a8f4908",
       "name": "Cleaning Job Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        160,
-        256
+        2912,
+        416
       ],
       "notes": "When reservation exists: TRUE = no cleaningJobId → create cleaning job; FALSE = has cleaning job → skip."
     },
@@ -661,26 +730,26 @@
         },
         "options": {}
       },
-      "id": "9bef42a4-56c7-4507-832e-b7d18a74c714",
+      "id": "1118533b-80c9-4c62-a32d-5084ef17f031",
       "name": "Reservation Exists?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -64,
-        160
+        2688,
+        320
       ]
     },
     {
       "parameters": {
         "jsCode": "// Run after Ensure One Item; read lead from Split In Batches and lookup from Ensure One Item.\nconst lead = $('Split In Batches').last().json;\nconst lookup = $('Ensure One Item').last().json;\nreturn [{ json: { ...lead, ...lookup } }];"
       },
-      "id": "4a1dc900-a437-41d8-b4c8-84d8c7c9cedb",
+      "id": "044586e7-bbdf-42a7-9072-b430f9343829",
       "name": "Merge Lead and Lookup",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -288,
-        160
+        2464,
+        320
       ],
       "notes": "Replaces Merge node: combines current lead + lookup result so both are always defined."
     },
@@ -688,13 +757,13 @@
       "parameters": {
         "jsCode": "let items = [];\ntry { if ($input && typeof $input.all === 'function') items = $input.all(); } catch (_) {}\nif (!items.length) return [{ json: { _noMatch: true } }];\nconst first = items[0].json || {};\n// When Lookup has \"Always output data\", 0 rows still send one item - treat as no match if no real reservation data\nconst hasRealMatch = first.bookingUid !== undefined && first.bookingUid !== null && String(first.bookingUid).trim() !== '';\nif (!hasRealMatch) return [{ json: { _noMatch: true } }];\nreturn [{ json: { ...first, _noMatch: false } }];"
       },
-      "id": "2b3d1e10-7926-499a-94bd-0eb168a10a86",
+      "id": "912aea6d-8ae5-47ff-8ffb-0a721ae5eb42",
       "name": "Ensure One Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -512,
-        160
+        2240,
+        320
       ],
       "alwaysOutputData": false
     },
@@ -722,18 +791,18 @@
         },
         "options": {}
       },
-      "id": "8d9ec5cf-ab81-4604-bd57-bbd05ad0c522",
+      "id": "e5c56297-7c8e-48f2-bbec-57df60f7e4ec",
       "name": "Lookup Reservation",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -736,
-        160
+        2016,
+        320
       ],
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       }
@@ -742,13 +811,13 @@
       "parameters": {
         "options": {}
       },
-      "id": "1029c38c-8e64-4017-b925-333e8e69c611",
+      "id": "f8fbe0cf-5b79-48ff-aab8-d897f0a62b56",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -960,
-        424
+        1792,
+        592
       ]
     },
     {
@@ -770,7 +839,8 @@
           "mappingMode": "defineBelow",
           "value": {
             "key": "={{ $json.key }}",
-            "storedTimestamp": "={{ $json.storedTimestamp }}"
+            "storedTimestamp": "={{ $json.storedTimestamp }}",
+            "row_number": 0
           },
           "matchingColumns": [
             "key"
@@ -813,18 +883,18 @@
         },
         "options": {}
       },
-      "id": "5cfc65bd-f53e-4e78-8295-94f0e0b6de95",
+      "id": "b6354cac-2e05-49ea-b108-5936b1b48766",
       "name": "Update Stored Timestamp",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -512,
-        352
+        2240,
+        512
       ],
       "notesInFlow": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -834,13 +904,13 @@
       "parameters": {
         "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nlet maxUpdated = null;\nfor (const lead of leads) {\n  const t = lead?.metadata?.updatedUtcDateTime;\n  if (t && (!maxUpdated || t > maxUpdated)) maxUpdated = t;\n}\nlet newStoredTimestamp = maxUpdated || data?.storedTimestamp || '1970-01-01T00:00:00.000Z';\n// Advance by 1 ms so the next run never sees \"equal\" timestamp (avoids skipping a booking forever)\nif (maxUpdated) {\n  const d = new Date(newStoredTimestamp);\n  d.setUTCMilliseconds(d.getUTCMilliseconds() + 1);\n  newStoredTimestamp = d.toISOString();\n}\nreturn [{ json: { key: 'config', storedTimestamp: newStoredTimestamp } }];"
       },
-      "id": "e311c5cf-1eb7-42f5-bd91-9591126f2cba",
+      "id": "ceb7b0d2-f5a5-4c60-bbc9-373a6f08771a",
       "name": "Compute Max After Loop",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -736,
-        352
+        2016,
+        512
       ],
       "notes": "Runs only when Split In Batches (Done) fires. Reads from Accumulate Leads to avoid timestamp race."
     },
@@ -848,13 +918,13 @@
       "parameters": {
         "jsCode": "const storedTimestamp = $('Accumulate Leads').last().json?.storedTimestamp || '1970-01-01T00:00:00.000Z';\nconst items = $input.all();\nconst filtered = [];\nfor (const item of items) {\n  const lead = item.json;\n  const created = lead?.metadata?.createdUtcDateTime;\n  if (created && created > storedTimestamp && lead?.type === 'BOOKING' && lead?.status === 'BOOKED') {\n    filtered.push(item);\n  }\n}\nreturn filtered;"
       },
-      "id": "95fd811c-087c-4f2b-94db-b41befe102af",
+      "id": "7be5f2d3-f2ed-448f-b9c6-4182fb8d075e",
       "name": "Filter New Bookings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1184,
-        424
+        1568,
+        592
       ]
     },
     {
@@ -862,13 +932,13 @@
         "fieldToSplitOut": "accumulatedLeads",
         "options": {}
       },
-      "id": "9f4a4ffa-4e9a-4be6-a18e-6f6d182e2b32",
+      "id": "8b9dd296-df09-4427-a0b9-3bc34168faa4",
       "name": "Output Leads Individually",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -1408,
-        424
+        1344,
+        592
       ]
     },
     {
@@ -896,26 +966,26 @@
         },
         "options": {}
       },
-      "id": "8de45384-4da1-4827-a2a5-849a7dcf1a93",
+      "id": "422d07b8-8108-4b56-84b6-753432df51da",
       "name": "Has More Pages?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1632,
-        424
+        1120,
+        592
       ]
     },
     {
       "parameters": {
         "jsCode": "// Use previous run of Accumulate Leads when runIndex > 0, else Initialize Cursor\nconst isFirstRun = typeof $runIndex === 'undefined' || $runIndex === 0;\nconst previousData = isFirstRun\n  ? $('Initialize Cursor').first().json\n  : $('Accumulate Leads').first(0, $runIndex - 1).json;\n\nconst response = $('Fetch Hostfully Leads').all()[0].json;\nconst newLeads = response.leads || [];\nconst nextCursor = response._paging?._nextCursor ?? null;\nconst storedTimestamp = previousData.storedTimestamp;\n\nreturn [{\n  json: {\n    cursor: nextCursor,\n    accumulatedLeads: [...(previousData.accumulatedLeads || []), ...newLeads],\n    storedTimestamp: storedTimestamp\n  }\n}];"
       },
-      "id": "44c7cdae-9aa3-4a4c-8c54-e746406f2897",
+      "id": "c54b320d-fb9a-4593-a710-756bdf414fb5",
       "name": "Accumulate Leads",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1856,
-        352
+        896,
+        512
       ]
     },
     {
@@ -941,26 +1011,26 @@
         },
         "options": {}
       },
-      "id": "ff137c13-cdba-4b43-bf8f-d3242ea610b0",
+      "id": "10c10efb-074a-4b36-952d-fdc827dcc05f",
       "name": "Fetch Hostfully Leads",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        -2080,
-        424
+        672,
+        592
       ]
     },
     {
       "parameters": {
         "jsCode": "let storedTimestamp = '1970-01-01T00:00:00.000Z';\ntry {\n  const readOut = $('Read Last Timestamp').first().json;\n  const raw = readOut?.storedTimestamp || readOut?.lastProcessedTimestamp;\n  if (typeof raw === 'string') {\n    storedTimestamp = raw.includes(' ') ? raw.replace(' ', 'T') : raw;\n  } else if (raw) {\n    storedTimestamp = raw;\n  }\n} catch (_) {}\nreturn [{ json: { cursor: null, accumulatedLeads: [], storedTimestamp } }];"
       },
-      "id": "7abcfaac-056e-43df-9bde-7fc40b44f7ac",
+      "id": "3ffce740-2767-4c8a-bd3f-d8df782b9f7a",
       "name": "Initialize Cursor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2304,
-        424
+        448,
+        592
       ]
     },
     {
@@ -979,18 +1049,18 @@
         },
         "options": {}
       },
-      "id": "1cab9b74-afd8-4641-a805-83fe819aa16b",
+      "id": "719a3edf-ca5c-4321-a3a1-fe488e72de85",
       "name": "Read Last Timestamp",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -2528,
-        424
+        224,
+        592
       ],
       "notesInFlow": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6WzYJIrG1pOhcusY",
+          "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
         }
       },
@@ -1009,10 +1079,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        -2752,
-        424
+        0,
+        592
       ],
-      "id": "8d3c8296-5019-4fde-916d-ec6454038dcc",
+      "id": "909a720c-0a00-4fe9-9539-be7f2d038402",
       "name": "Schedule Trigger"
     }
   ],
@@ -1262,11 +1332,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "135a0f85-628f-48e5-bb76-2d6bfb107655",
+  "versionId": "be00b240-bcb8-45fb-9726-077dd0404f6b",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "0bb07b5703ea134861899ac05e6415d78b46918890ccb5152413bbf5502ab3aa"
+    "instanceId": "6a182e137b0efa52bc5ca70ffff0b22c853fa1e0bdd46efb5c0d20201c291f2e"
   },
-  "id": "lK3a0UuuNq39FYlA",
+  "id": "JKS8Imjt5Nvp1ReG",
   "tags": []
 }
