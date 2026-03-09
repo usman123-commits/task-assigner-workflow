@@ -9,6 +9,7 @@ There are only 5 property UIDs discovered yet:
 - `33f964cf-2531-47f8-8133-fd501e9f6814`
 - `6301ad7e-6d32-426a-8aef-daa74978f911`
 - `2e49d012-dcf1-43ef-8ce3-566f2364352d`
+  996b0202-6422-45f0-9244-c4060afb8035
 
 First we define:
 What should happen the moment a new confirmed booking is detected?
@@ -19,7 +20,7 @@ Your workflow correctly detects:
 
 - `type === "BOOKING"`
 - `status === "BOOKED"`
-- `createdUtcDateTime > storedTimestamp`
+- `metadata.createdUtcDateTime > storedTimestamp` (new = created after last run)
 
 This is your ingestion entry point.
 
@@ -29,7 +30,7 @@ Booking workflow must remain isolated and stable.
 ## Step 1.2 – Create Internal "Reservation Record"
 
 Instead of external tools, we now:
-Create a structured record in Google Sheets (reservation tab).
+Create a structured record in Google Sheets (**Reservations** tab).
 
 **Minimum fields stored:**
 
@@ -51,7 +52,7 @@ No cleaner logic here.
 ## Step 1.3 – Derive Cleaning Job
 
 Immediately after reservation record creation:
-Create entry in cleaning_job tab.
+Create entry in **CleaningJobs** tab.
 
 **Fields:**
 
@@ -90,7 +91,7 @@ Google Sheets remains source of truth.
 - AND calendarEventId is empty
 - AND processingFlag is empty (row-level lock)
 
-System polls cleaning_job tab.
+System polls **CleaningJobs** tab.
 
 ## Step 2.2 – Assign Cleaner (Rule-Based)
 
@@ -191,14 +192,11 @@ Cleaner opens Google Form link.
 - Workflow 3 listens to new rows in `Form Responses 1`, validates required fields, extracts lat/lng, and appends a normalized row into `ClockInSubmissions` with `processingStatus = PENDING`.
 - Workflow 3B polls `ClockInSubmissions` and processes only `PENDING` rows:
   - Validates the cleaner is assigned to the booking (by comparing submission `cleanerId` with the assigned `cleanerId` in `CleaningJobs` for the same `bookingUid`).
-  - Validates GPS radius (≤ 100m) using property coordinates (currently expected from `CleanersProfile` as `latitude` / `longitude`).
+  - Validates GPS radius (≤ 100m) using property coordinates from **CleanersProfile** (lookup by `cleanerId`; sheet must have columns **`latitude`** and **`longitude`**).
   - If approved:
     - Updates `ClockInSubmissions.processingStatus = APPROVED`, sets `processedAt`.
-    - Updates `CleaningJobs`:
-      - `status = IN_PROGRESS`
-      - `clockInTimeUTC = submissionTimestamp`
-      - `gpsClockInLat`, `gpsClockInLng`
-      - `gpsStatus = INSIDE_RADIUS`
+    - Updates **CleaningJobs**: `status = IN_PROGRESS`, `clockInTimeUTC`, `gpsClockInLat`, `gpsClockInLng`, `gpsStatus = INSIDE_RADIUS`.
+    - Some variants also update **Reservations**.`cleaningStatus = IN_PROGRESS` for the same booking.
   - If rejected: updates `ClockInSubmissions.processingStatus = REJECTED` with a message and does not update `CleaningJobs`.
 
 **Store:**
@@ -245,8 +243,8 @@ workedHours = clockOutTimeUTC – clockInTimeUTC
 **System rule:**
 Payroll only processes jobs with:
 
-- cleaningStatus = COMPLETED
-- AND payrollStatus = READY
+- **CleaningJobs.status** = COMPLETED
+- AND payrollStatus = READY (on Reservations or as defined for payroll)
 
 ---
 
