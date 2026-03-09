@@ -44,6 +44,21 @@
     },
     {
       "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1088,
+        304
+      ],
+      "notes": "Process one form submission per loop. Loop back from Insert Structured Row to process next item."
+    },
+    {
+      "parameters": {
         "jsCode": "// Normalize form item and detect short Maps link (so we can branch: short = HTTP Request, else = ParseAndValidate).\nconst item = $input.first().json;\nconst get = (name) => {\n  const v = item[name];\n  if (v !== undefined && v !== null) return v;\n  const key = Object.keys(item).find(k => k.trim() === name);\n  return key !== undefined ? item[key] : undefined;\n};\nconst captureLocation = (get('Capture Location') ?? '').toString().trim();\nconst isShortLink = /^(https?:\\/\\/)?(www\\.)?(maps\\.app\\.goo\\.gl|goo\\.gl\\/maps)\\/\\S+/i.test(captureLocation);\nreturn [{ json: { ...item, captureLocation, isShortLink } }];"
       },
       "id": "69e871eb-b6c1-4a98-be3f-347893d12dec",
@@ -180,7 +195,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Duplicate protection: if this bookingUid already has an APPROVED clock-in, do not insert (return 0 items).\nconst existing = $input.all();\nlet parsed;\ntry { parsed = $('Parse Short Link Response').first().json; } catch (_) {}\nif (!parsed) try { parsed = $('ParseAndValidate').first().json; } catch (_) {}\nif (!parsed) throw new Error('Missing parsed submission');\nconst hasApproved = existing.some(i => (i.json?.processingStatus ?? '').toString().trim() === 'APPROVED');\nif (hasApproved) return [];\nreturn [{ json: parsed }];"
+        "jsCode": "// Duplicate protection: if this bookingUid already has an APPROVED clock-in, skip insert but still return 1 item so the batch loop continues.\nconst existing = $input.all();\nlet parsed;\ntry { parsed = $('Parse Short Link Response').first().json; } catch (_) {}\nif (!parsed) try { parsed = $('ParseAndValidate').first().json; } catch (_) {}\nif (!parsed) throw new Error('Missing parsed submission');\nconst hasApproved = existing.some(i => (i.json?.processingStatus ?? '').toString().trim() === 'APPROVED');\nif (hasApproved) return [{ json: { skipInsert: true } }];\nreturn [{ json: { ...parsed, skipInsert: false } }];"
       },
       "id": "702b60df-221f-4b08-909d-8a5d71d7d7f8",
       "name": "Reject If Already Approved",
@@ -191,7 +206,41 @@
         304
       ],
       "alwaysOutputData": false,
-      "notes": "If any existing row has processingStatus=APPROVED, return no items (no insert). Otherwise pass parsed item to Insert."
+      "notes": "If any existing row has processingStatus=APPROVED, return { skipInsert: true } so loop continues; else return parsed item with skipInsert: false."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "do-insert",
+              "leftValue": "={{ $json.skipInsert }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b5c6d7e8-f9a0-1234-b567-c89012345678",
+      "name": "Should Insert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        304
+      ],
+      "notes": "TRUE = insert row. FALSE = already approved, skip insert (loop continues via Reject → Split In Batches)."
     },
     {
       "parameters": {
@@ -324,6 +373,17 @@
       "main": [
         [
           {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
             "node": "Normalize and Check",
             "type": "main",
             "index": 0
@@ -405,6 +465,22 @@
       ]
     },
     "Reject If Already Approved": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Should Insert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Insert?": {
       "main": [
         [
           {

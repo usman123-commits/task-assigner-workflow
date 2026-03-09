@@ -674,6 +674,128 @@
     },
     {
       "parameters": {
+        "jsCode": "// Compare Hostfully checkout with Reservations sheet. Only trigger when different (extended checkout).\nconst merged = $input.first().json;\nconst newCheckoutRaw = merged?.checkOutZonedDateTime ?? merged?.checkOutLocalDateTime ?? '';\nconst oldCheckoutRaw = (merged?.checkOut ?? '').toString().trim();\nfunction normalize(t) {\n  if (!t || typeof t !== 'string') return '';\n  const s = t.trim().replace(/\\s+/g, 'T');\n  const d = new Date(s);\n  return isNaN(d.getTime()) ? s : d.toISOString();\n}\nconst newCheckout = normalize(newCheckoutRaw);\nconst oldCheckout = normalize(oldCheckoutRaw);\nconst checkoutChanged = newCheckout !== '' && oldCheckout !== '' && newCheckout !== oldCheckout;\nreturn [{ json: { ...merged, isExtendedCheckout: checkoutChanged, oldCheckout: oldCheckoutRaw, newCheckout: newCheckoutRaw } }];"
+      },
+      "id": "detect-extended-checkout-code",
+      "name": "Detect Extended Checkout",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2780,
+        320
+      ],
+      "notes": "Compare hostfully checkout with Reservations.checkOut. Set isExtendedCheckout only when different."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-extended",
+              "leftValue": "={{ $json.isExtendedCheckout }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "checkout-extended-if",
+      "name": "Checkout Extended?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2856,
+        320
+      ],
+      "notes": "TRUE = extended checkout → trigger Workflow 1A. FALSE = same checkout → Cleaning Job Needed?"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.bookingUid || $json.uid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lookup-cleaningjobs-extended",
+      "name": "Lookup CleaningJobs (for extended)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        3032,
+        224
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Get cleanerId for webhook payload when checkout extended."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build webhook payload for Workflow 1A. cleanerId from CleaningJobs lookup if any.\nconst merged = $('Detect Extended Checkout').first().json;\nconst jobRows = $input.all();\nconst firstJob = jobRows.length && jobRows[0].json ? jobRows[0].json : {};\nconst cleanerId = (firstJob.cleanerId ?? firstJob.assignedCleaner ?? '').toString().trim();\nreturn [{\n  json: {\n    reservationUID: merged.bookingUid || merged.uid || '',\n    propertyId: merged.propertyUid || '',\n    cleanerId: cleanerId,\n    oldCheckout: merged.oldCheckout ?? '',\n    newCheckout: merged.newCheckout ?? ''\n  }\n}];"
+      },
+      "id": "build-webhook-payload",
+      "name": "Build Webhook Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3248,
+        224
+      ],
+      "notes": "Payload: reservationUID, propertyId, cleanerId, oldCheckout, newCheckout for Workflow 1A."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WORKFLOW_1A_WEBHOOK_URL || 'https://your-n8n-instance/webhook/extended-checkout' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "trigger-workflow-1a",
+      "name": "Trigger Workflow 1A (Extended Checkout)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3464,
+        224
+      ],
+      "notes": "POST payload to Workflow 1A webhook. Set N8N_WORKFLOW_1A_WEBHOOK_URL or edit URL."
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -1143,7 +1265,7 @@
       "main": [
         [
           {
-            "node": "Cleaning Job Needed?",
+            "node": "Detect Extended Checkout",
             "type": "main",
             "index": 0
           }
@@ -1151,6 +1273,68 @@
         [
           {
             "node": "Create Reservation Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Extended Checkout": {
+      "main": [
+        [
+          {
+            "node": "Checkout Extended?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkout Extended?": {
+      "main": [
+        [
+          {
+            "node": "Lookup CleaningJobs (for extended)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cleaning Job Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup CleaningJobs (for extended)": {
+      "main": [
+        [
+          {
+            "node": "Build Webhook Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Webhook Payload": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow 1A (Extended Checkout)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Workflow 1A (Extended Checkout)": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
             "type": "main",
             "index": 0
           }

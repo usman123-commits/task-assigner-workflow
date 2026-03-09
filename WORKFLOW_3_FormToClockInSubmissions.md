@@ -12,7 +12,9 @@
 |------|---------------|
 | **Google Sheets Trigger** | Poll (e.g. every minute). Document = hostfully spreadsheet. Sheet = **Form Responses 1** (or "Raw Form Responses" by gid). Event: **Row Added**. |
 
-**Flow start:** Google Sheets Trigger → Normalize and Check.
+**Flow start:** Google Sheets Trigger → Split In Batches → Normalize and Check.
+
+**Multiple submissions:** The trigger may emit multiple new rows in one poll. **Split In Batches** (batch size 1) processes them one-by-one: each submission runs through the pipeline, then the flow loops back from **Reject If Already Approved** to Split In Batches for the next item. This ensures every new form response is processed without dropping any.
 
 ---
 
@@ -20,19 +22,23 @@
 
 | # | Node name | Type | Role |
 |---|-----------|------|------|
-| 1 | Google Sheets Trigger | Google Sheets Trigger | On new row in Form Responses 1 |
-| 2 | Normalize and Check | Code | Normalize form keys (spaces); set captureLocation, isShortLink |
-| 3 | Is Short Link? | IF | isShortLink true? → Resolve Short Link / false → ParseAndValidate |
-| 4 | Resolve Short Link | HTTP Request | GET captureLocation URL (short Maps link) |
-| 5 | Parse Short Link Response | Code | Parse lat/lng from response body (q=lat%2Clng or similar); validate Confirm Arrival |
-| 6 | ParseAndValidate | Code | Full URL or lat,lng or DMS; validate Confirm Arrival + location; output structured row |
-| 7 | Lookup Existing ClockIn | Google Sheets (read) | Lookup **ClockInSubmissions** by bookingUid + processingStatus=APPROVED |
-| 8 | Reject If Already Approved | Code | If any row APPROVED for this bookingUid → return 0 items (no insert). Else pass parsed item. |
-| 9 | Insert Structured Row | Google Sheets (append) | Append one row to **ClockInSubmissions** with exact column mapping |
+| 1 | Google Sheets Trigger | Google Sheets Trigger | On new row(s) in Form Responses 1 |
+| 2 | Split In Batches | Split In Batches | Batch size 1; process one submission per loop; loop back from Reject |
+| 3 | Normalize and Check | Code | Normalize form keys (spaces); set captureLocation, isShortLink |
+| 4 | Is Short Link? | IF | isShortLink true? → Resolve Short Link / false → ParseAndValidate |
+| 5 | Resolve Short Link | HTTP Request | GET captureLocation URL (short Maps link) |
+| 6 | Parse Short Link Response | Code | Parse lat/lng from response body (q=lat%2Clng or similar); validate Confirm Arrival |
+| 7 | ParseAndValidate | Code | Full URL or lat,lng or DMS; validate Confirm Arrival + location; output structured row |
+| 8 | Lookup Existing ClockIn | Google Sheets (read) | Lookup **ClockInSubmissions** by bookingUid + processingStatus=APPROVED |
+| 9 | Reject If Already Approved | Code | If any row APPROVED → return 1 item with skipInsert: true (loop continues). Else return parsed item with skipInsert: false. |
+| 10 | Should Insert? | IF | skipInsert === false? TRUE → Insert Structured Row / FALSE → skip insert (loop continues) |
+| 11 | Insert Structured Row | Google Sheets (append) | Append one row to **ClockInSubmissions** with exact column mapping |
+
+**Loop back:** Reject If Already Approved → Split In Batches (so the next batch runs). When Reject returns `skipInsert: true`, only the FALSE branch of Should Insert? is taken (no insert); when `skipInsert: false`, TRUE branch runs and Insert appends the row.
 
 **Branches:**  
-- Short link: Trigger → Normalize → Is Short Link (true) → Resolve Short Link → Parse Short Link Response → Lookup Existing ClockIn → …  
-- Full URL / lat,lng / DMS: Trigger → Normalize → Is Short Link (false) → ParseAndValidate → Lookup Existing ClockIn → …
+- Short link: Split In Batches → Normalize → Is Short Link (true) → Resolve Short Link → Parse Short Link Response → Lookup Existing ClockIn → Reject → (Split In Batches or Should Insert? → Insert).  
+- Full URL / lat,lng / DMS: Split In Batches → Normalize → Is Short Link (false) → ParseAndValidate → Lookup Existing ClockIn → Reject → (Split In Batches or Should Insert? → Insert).
 
 ---
 
@@ -79,8 +85,14 @@
 
 ### 5.4 Reject If Already Approved
 
-- If **Lookup Existing ClockIn** returned any row with processingStatus=APPROVED → return **no items** (Insert Structured Row not run).
-- Otherwise pass through the single parsed item to Insert.
+- If **Lookup Existing ClockIn** returned any row with processingStatus=APPROVED → return **one item** with `skipInsert: true` (so the batch loop continues; Insert is skipped via Should Insert?).
+- Otherwise return the parsed item with `skipInsert: false` (Should Insert? TRUE branch runs and Insert appends the row).
+- The node always returns exactly one item so that the flow always loops back to Split In Batches and processes the next submission.
+
+### 5.5 Should Insert?
+
+- **TRUE** when `skipInsert === false` → run Insert Structured Row.
+- **FALSE** when `skipInsert === true` (already approved) → no insert; flow has already returned to Split In Batches via Reject.
 
 ---
 
@@ -118,5 +130,5 @@
 
 ## 9. Known gaps / notes
 
-- One trigger execution = one new form response. If the trigger fires on multiple rows in one poll, behavior is per-row (each row goes through the flow; duplicate check is per bookingUid).
+- One trigger execution can include **multiple new rows** in one poll. **Split In Batches** (batch size 1) plus loop back from Reject ensures each row is processed one-by-one; duplicate check is per bookingUid (no insert if already APPROVED).
 - Workflow is **active** by default (`active: true` in JSON).

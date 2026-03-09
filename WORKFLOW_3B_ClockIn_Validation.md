@@ -130,6 +130,7 @@
 
 ## 7. Known gaps / notes
 
+- **Multiple PENDING rows:** Only PENDING outputs all rows where processingStatus === 'PENDING'. n8n runs Get Booking and downstream nodes once per item; no extra loop is needed. All PENDING submissions in a run are processed.
 - **Row matching:** ClockInSubmissions updates use **row_number**. Ensure the sheet returns row_number (e.g. n8n “Include row number” or equivalent) so updates target the correct row.
 - **Edit Fields** excludes "row_number " (with space); **Get Booking** returns CleaningJobs rows that may have row_number from the sheet – Edit Fields avoids carrying that into Merge Submission and Job if it would conflict.
 - **Merge by index:** Get Booking runs once per PENDING item; order must align with Only PENDING so Merge Submission and Job and Merge Coords with Submission are correct. If Get Booking returns 0 rows for a submission, merge by index can pair wrong job/coords; consider handling “no job” explicitly.

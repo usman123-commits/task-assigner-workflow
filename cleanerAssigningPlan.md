@@ -24,6 +24,8 @@ Your workflow correctly detects:
 
 This is your ingestion entry point.
 
+**Extended checkout:** When a reservation **already exists** in the sheet and the checkout time in Hostfully **differs** from the sheet, Workflow 1 does **not** update Reservations/CleaningJobs/Calendar. It triggers **Workflow 1A (Extended Checkout Processor)** via webhook with `reservationUID`, `propertyId`, `cleanerId`, `oldCheckout`, `newCheckout`. Workflow 1A is responsible for all extended-checkout updates.
+
 **System rule:**
 Booking workflow must remain isolated and stable.
 
@@ -189,8 +191,8 @@ Cleaner opens Google Form link.
 
 **Processing pipeline (current implementation):**
 
-- Workflow 3 listens to new rows in `Form Responses 1`, validates required fields, extracts lat/lng, and appends a normalized row into `ClockInSubmissions` with `processingStatus = PENDING`.
-- Workflow 3B polls `ClockInSubmissions` and processes only `PENDING` rows:
+- Workflow 3 listens to new rows in `Form Responses 1`, uses **Split In Batches** (batch size 1) to process each new submission one-by-one, validates required fields, extracts lat/lng, and appends a normalized row into `ClockInSubmissions` with `processingStatus = PENDING` (duplicate protection: no insert if that booking already has an APPROVED row).
+- Workflow 3B polls `ClockInSubmissions` and processes **all** `PENDING` rows in each run (each item flows through Get Booking and validation; no extra loop needed):
   - Validates the cleaner is assigned to the booking (by comparing submission `cleanerId` with the assigned `cleanerId` in `CleaningJobs` for the same `bookingUid`).
   - Validates GPS radius (≤ 100m) using property coordinates from **CleanersProfile** (lookup by `cleanerId`; sheet must have columns **`latitude`** and **`longitude`**).
   - If approved:
