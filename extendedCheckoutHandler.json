@@ -1,0 +1,508 @@
+{
+  "name": "Extended Checkout Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "extended-checkout-handler",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Receive Extended Checkout Payload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "a1b2c3d4-1234-5678-9abc-def012345678"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.body.bookingUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Lookup Cleaning Job",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [250, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Extended Checkout Payload').item.json.body || {};\nconst items = $input.all();\nconst first = items[0]?.json || {};\nconst hasJob = items.length > 0 && (first.bookingUid !== undefined && first.bookingUid !== null && String(first.bookingUid).trim() !== '');\nreturn [{ json: { ...body, ...(hasJob ? first : {}), _jobFound: hasJob } }];"
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Prepare Job Found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "job-found",
+              "leftValue": "={{ $json._jobFound }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-b8c9-0123-def0-234567890123",
+      "name": "Job Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "pending",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "PENDING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PENDING"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "assigned",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "ASSIGNED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ASSIGNED"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+      "name": "Route by Job Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $('Receive Extended Checkout Payload').item.json.body.bookingUid }}",
+            "checkoutTimeUTC": "={{ $('Receive Extended Checkout Payload').item.json.body.newCheckoutTimeUTC }}",
+            "scheduledCleaningTimeUTC": "={{ $('Receive Extended Checkout Payload').item.json.body.newScheduledCleaningTimeUTC }}",
+            "cleaningDate": "={{ $('Receive Extended Checkout Payload').item.json.body.newCleaningDate }}",
+            "cleaningTime": "={{ $('Receive Extended Checkout Payload').item.json.body.newCleaningTime }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "type": "string", "canBeUsedToMatch": true },
+            { "id": "checkoutTimeUTC", "displayName": "checkoutTimeUTC", "type": "string" },
+            { "id": "scheduledCleaningTimeUTC", "displayName": "scheduledCleaningTimeUTC", "type": "string" },
+            { "id": "cleaningDate", "displayName": "cleaningDate", "type": "string" },
+            { "id": "cleaningTime", "displayName": "cleaningTime", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-2345-f012-456789012345",
+      "name": "Update CleaningJob PENDING",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1250, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $('Receive Extended Checkout Payload').item.json.body.bookingUid }}",
+            "checkoutTimeUTC": "={{ $('Receive Extended Checkout Payload').item.json.body.newCheckoutTimeUTC }}",
+            "scheduledCleaningTimeUTC": "={{ $('Receive Extended Checkout Payload').item.json.body.newScheduledCleaningTimeUTC }}",
+            "cleaningDate": "={{ $('Receive Extended Checkout Payload').item.json.body.newCleaningDate }}",
+            "cleaningTime": "={{ $('Receive Extended Checkout Payload').item.json.body.newCleaningTime }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "type": "string", "canBeUsedToMatch": true },
+            { "id": "checkoutTimeUTC", "displayName": "checkoutTimeUTC", "type": "string" },
+            { "id": "scheduledCleaningTimeUTC", "displayName": "scheduledCleaningTimeUTC", "type": "string" },
+            { "id": "cleaningDate", "displayName": "cleaningDate", "type": "string" },
+            { "id": "cleaningTime", "displayName": "cleaningTime", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7b8c9d0-e1f2-3456-0123-567890123456",
+      "name": "Update CleaningJob ASSIGNED",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1250, 100],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "b8c9d0e1-f2a3-4567-1234-678901234567",
+      "name": "Skip (Job Active or Completed)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Extended Checkout Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst startStr = body.newScheduledCleaningTimeUTC;\nif (!startStr) throw new Error('Missing newScheduledCleaningTimeUTC');\nconst start = new Date(startStr);\nif (Number.isNaN(start.getTime())) throw new Error('Invalid newScheduledCleaningTimeUTC');\nconst end = new Date(start.getTime() + 3 * 60 * 60 * 1000);\nconst startTime = start.toISOString();\nconst endTime = end.toISOString();\nconst calendarEventId = (job.calendarEventId || '').toString().trim();\nconst calendarId = (job.calendarId || '').toString().trim();\nreturn [{ json: { startTime, endTime, calendarEventId, calendarId } }];"
+      },
+      "id": "c9d0e1f2-a3b4-5678-2345-789012345678",
+      "name": "Calculate New Cleaning Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "YOUR_ADMIN_CALENDAR_ID",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.calendarEventId }}",
+        "start": "={{ $json.startTime }}",
+        "end": "={{ $json.endTime }}",
+        "additionalFields": {}
+      },
+      "id": "d0e1f2a3-b4c5-6789-3456-890123456789",
+      "name": "Update Admin Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [1750, 100],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Calculate New Cleaning Window').item.json.calendarId }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $('Calculate New Cleaning Window').item.json.calendarEventId }}",
+        "start": "={{ $('Calculate New Cleaning Window').item.json.startTime }}",
+        "end": "={{ $('Calculate New Cleaning Window').item.json.endTime }}",
+        "additionalFields": {}
+      },
+      "id": "e1f2a3b4-c5d6-7890-4567-901234567890",
+      "name": "Update Cleaner Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [2000, 100],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleanersProfile",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "cleaner ID",
+              "lookupValue": "={{ $('Lookup Cleaning Job').item.json.cleanerId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f7b8c9d0-e1f2-3456-7890-123456789abc",
+      "name": "Lookup Cleaner Email",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2250, 100],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Extended Checkout Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst profile = $('Lookup Cleaner Email').item.json || {};\nconst cleanerEmail = (profile['email'] || profile['cleanerEmail'] || '').toString().trim();\nconst calendarEventId = (job.calendarEventId || '').toString().trim();\nconst propertyName = (job.propertyName || job.propertyUid || '').toString().trim();\nconst bookingUid = (body.bookingUid || '').toString().trim();\nconst newCleaningDate = (body.newCleaningDate || '').toString().trim();\nconst newCleaningTime = (body.newCleaningTime || '').toString().trim();\nconst newCheckoutTimeUTC = (body.newCheckoutTimeUTC || '').toString().trim();\nconst calendarLink = calendarEventId\n  ? 'https://calendar.google.com/calendar/r/eventedit/' + calendarEventId\n  : '';\nconst subject = 'Updated Cleaning Schedule – ' + propertyName;\nconst bodyText = `Hi,\\n\\nPlease note that the checkout date for your assigned cleaning has been updated.\\n\\nProperty: ${propertyName}\\nBooking Reference: ${bookingUid}\\nNew Cleaning Date: ${newCleaningDate}\\nNew Cleaning Start Time: ${newCleaningTime} UTC\\n\\nYour calendar event has been updated automatically.\\n\\nPlease do not reply to this email. Contact your manager if you have questions.`;\nreturn [{ json: { toEmail: cleanerEmail, subject, body: bodyText } }];"
+      },
+      "id": "f2a3b4c5-d6e7-8901-5678-012345678901",
+      "name": "Prepare Reassignment Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2500, 100]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.toEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "a3b4c5d6-e7f8-9012-6789-123456789012",
+      "name": "Send Reassignment Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [2750, 100],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $('Receive Extended Checkout Payload').item.json.body.bookingUid }}",
+            "checkOut": "={{ $('Receive Extended Checkout Payload').item.json.body.newCheckOut }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "type": "string", "canBeUsedToMatch": true },
+            { "id": "checkOut", "displayName": "checkOut", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b4c5d6e7-f8a9-0123-7890-234567890123",
+      "name": "Update Reservation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [3000, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bookingUid": "={{ $('Receive Extended Checkout Payload').item.json.body.bookingUid }}",
+            "checkOut": "={{ $('Receive Extended Checkout Payload').item.json.body.newCheckOut }}"
+          },
+          "matchingColumns": ["bookingUid"],
+          "schema": [
+            { "id": "bookingUid", "displayName": "bookingUid", "type": "string", "canBeUsedToMatch": true },
+            { "id": "checkOut", "displayName": "checkOut", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c5d6e7f8-a9b0-1234-8901-345678901234",
+      "name": "Update Reservation Only",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1000, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Extended Checkout Payload": {
+      "main": [[{ "node": "Lookup Cleaning Job", "type": "main", "index": 0 }]]
+    },
+    "Lookup Cleaning Job": {
+      "main": [[{ "node": "Prepare Job Found", "type": "main", "index": 0 }]]
+    },
+    "Prepare Job Found": {
+      "main": [[{ "node": "Job Found?", "type": "main", "index": 0 }]]
+    },
+    "Job Found?": {
+      "main": [
+        [{ "node": "Route by Job Status", "type": "main", "index": 0 }],
+        [{ "node": "Update Reservation Only", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route by Job Status": {
+      "main": [
+        [{ "node": "Update CleaningJob PENDING", "type": "main", "index": 0 }],
+        [{ "node": "Update CleaningJob ASSIGNED", "type": "main", "index": 0 }],
+        [{ "node": "Skip (Job Active or Completed)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update CleaningJob PENDING": {
+      "main": [[{ "node": "Update Reservation", "type": "main", "index": 0 }]]
+    },
+    "Update CleaningJob ASSIGNED": {
+      "main": [[{ "node": "Calculate New Cleaning Window", "type": "main", "index": 0 }]]
+    },
+    "Calculate New Cleaning Window": {
+      "main": [[{ "node": "Update Admin Calendar Event", "type": "main", "index": 0 }]]
+    },
+    "Update Admin Calendar Event": {
+      "main": [[{ "node": "Update Cleaner Calendar Event", "type": "main", "index": 0 }]]
+    },
+    "Update Cleaner Calendar Event": {
+      "main": [[{ "node": "Lookup Cleaner Email", "type": "main", "index": 0 }]]
+    },
+    "Lookup Cleaner Email": {
+      "main": [[{ "node": "Prepare Reassignment Email", "type": "main", "index": 0 }]]
+    },
+    "Prepare Reassignment Email": {
+      "main": [[{ "node": "Send Reassignment Email", "type": "main", "index": 0 }]]
+    },
+    "Send Reassignment Email": {
+      "main": [[{ "node": "Update Reservation", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {},
+  "tags": []
+}
