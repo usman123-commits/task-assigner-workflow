@@ -929,6 +929,112 @@
     },
     {
       "parameters": {
+        "jsCode": "const data = $('Accumulate Leads').last().json;\nconst leads = data?.accumulatedLeads || [];\nconst storedTimestamp = data?.storedTimestamp\n  || '1970-01-01T00:00:00.000Z';\n\nconst ZONED_REGEX = /[zZ]|[+-]\\d{2}:\\d{2}$/;\n\nconst candidates = [];\n\nfor (const lead of leads) {\n  const created = lead?.metadata?.createdUtcDateTime;\n  const updated = lead?.metadata?.updatedUtcDateTime;\n\n  if (lead?.type !== 'BOOKING' || lead?.status !== 'BOOKED') continue;\n  if (!updated || !created) continue;\n  if (updated <= storedTimestamp) continue;\n  if (created > storedTimestamp) continue;\n\n  const rawCheckout = lead?.checkOutZonedDateTime;\n  if (!rawCheckout || !ZONED_REGEX.test(rawCheckout.trim())) continue;\n\n  const checkoutDate = new Date(rawCheckout.trim());\n  if (isNaN(checkoutDate.getTime())) continue;\n\n  const checkoutTimeUTC = checkoutDate.toISOString();\n  const checkoutDateOnly = checkoutTimeUTC.substring(0, 10);\n  const checkoutTimeOnly = checkoutTimeUTC.substring(11, 16);\n\n  candidates.push({\n    bookingUid: lead.uid || '',\n    propertyUid: lead.propertyUid || '',\n    newCheckOut: lead.checkOutLocalDateTime || checkoutDateOnly,\n    newCheckoutTimeUTC: checkoutTimeUTC,\n    newScheduledCleaningTimeUTC: checkoutTimeUTC,\n    newCleaningDate: checkoutDateOnly,\n    newCleaningTime: checkoutTimeOnly\n  });\n}\n\nreturn candidates.map(c => ({ json: c }));"
+      },
+      "id": "a8e6d4c2-1b3f-4a5e-9d7c-0f2e8a1b3c4d",
+      "name": "Detect Extended Checkouts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        820
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c0a8f6e4-3d5b-6c7a-1f9e-2b3c4d5e6f7a",
+      "name": "Split Extended Candidates",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.bookingUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e2c0a8f6-3d5b-4e7a-9f1e-2b3c4d5e6f8a",
+      "name": "Lookup Reservation for Candidate",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        2240,
+        820
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const lookupItems = $('Lookup Reservation for Candidate').all();\nconst candidate = $('Split Extended Candidates').item.json;\n\nconst reservationFound = lookupItems.length > 0 &&\n  lookupItems[0].json?.bookingUid !== undefined &&\n  lookupItems[0].json?.bookingUid !== null &&\n  String(lookupItems[0].json?.bookingUid).trim() !== '';\n\nif (!reservationFound) return [];\n\nreturn [{ json: candidate }];"
+      },
+      "id": "f3d1b9a7-4e6c-5f8b-0a2f-3c4d5e6f7a9b",
+      "name": "Reservation Exists Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_N8N_WEBHOOK_BASE_URL/webhook/extended-checkout-handler",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "bookingUid", "value": "={{ $json.bookingUid }}" },
+            { "name": "propertyUid", "value": "={{ $json.propertyUid }}" },
+            { "name": "newCheckOut", "value": "={{ $json.newCheckOut }}" },
+            { "name": "newCheckoutTimeUTC", "value": "={{ $json.newCheckoutTimeUTC }}" },
+            { "name": "newScheduledCleaningTimeUTC", "value": "={{ $json.newScheduledCleaningTimeUTC }}" },
+            { "name": "newCleaningDate", "value": "={{ $json.newCleaningDate }}" },
+            { "name": "newCleaningTime", "value": "={{ $json.newCleaningTime }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d1b9a7f5-4e6c-7d8b-2a0f-3c4d5e6f7a8b",
+      "name": "Trigger Extended Checkout Handler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2720,
+        820
+      ]
+    },
+    {
+      "parameters": {
         "fieldToSplitOut": "accumulatedLeads",
         "options": {}
       },
@@ -1235,6 +1341,55 @@
         [
           {
             "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Detect Extended Checkouts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Extended Checkouts": {
+      "main": [
+        [
+          {
+            "node": "Split Extended Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Extended Candidates": {
+      "main": [
+        [
+          {
+            "node": "Lookup Reservation for Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Reservation for Candidate": {
+      "main": [
+        [
+          {
+            "node": "Reservation Exists Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservation Exists Guard": {
+      "main": [
+        [
+          {
+            "node": "Trigger Extended Checkout Handler",
             "type": "main",
             "index": 0
           }
