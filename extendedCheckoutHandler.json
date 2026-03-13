@@ -669,7 +669,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $('Receive Extended Checkout Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst profile = $('Lookup Cleaner Email').item.json || {};\nconst cleanerEmail = (profile['email'] || profile['cleanerEmail'] || '').toString().trim();\nconst calendarEventId = (job.calendarEventId || '').toString().trim();\nconst propertyName = (job.propertyName || job.propertyUid || '').toString().trim();\nconst bookingUid = (body.bookingUid || '').toString().trim();\nconst newCleaningDate = (body.newCleaningDate || '').toString().trim();\nconst newCleaningTime = (body.newCleaningTime || '').toString().trim();\nconst newCheckoutTimeUTC = (body.newCheckoutTimeUTC || '').toString().trim();\nconst calendarLink = calendarEventId\n  ? 'https://calendar.google.com/calendar/r/eventedit/' + calendarEventId\n  : '';\nconst subject = 'Updated Cleaning Schedule \u2013 ' + propertyName;\nconst bodyText = `Hi,\\n\\nPlease note that the checkout date for your assigned cleaning has been updated.\\n\\nProperty: ${propertyName}\\nBooking Reference: ${bookingUid}\\nNew Cleaning Date: ${newCleaningDate}\\nNew Cleaning Start Time: ${newCleaningTime} UTC\\n\\nYour calendar event has been updated automatically.\\n\\nPlease do not reply to this email. Contact your manager if you have questions.`;\nreturn [{ json: { toEmail: cleanerEmail, subject, body: bodyText } }];"
+        "jsCode": "const body = $('Receive Extended Checkout Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst profile = $('Lookup Cleaner Email').item.json || {};\nconst prop = $('Lookup Property Name').item.json || {};\nconst cleanerEmail = (profile['email'] || profile['cleanerEmail'] || '').toString().trim();\nconst calendarEventId = (job.calendarEventId || '').toString().trim();\n// propertyName: from Properties sheet first, fallback to propertyUid\nconst propertyName = (prop.propertyName || body.propertyUid || '').toString().trim();\nconst bookingUid = (body.bookingUid || '').toString().trim();\nconst newCleaningDate = (body.newCleaningDate || '').toString().trim();\nconst newCleaningTime = (body.newCleaningTime || '').toString().trim();\nconst newCheckoutTimeUTC = (body.newCheckoutTimeUTC || '').toString().trim();\nconst calendarLink = calendarEventId\n  ? 'https://calendar.google.com/calendar/r/eventedit/' + calendarEventId\n  : '';\nconst subject = 'Updated Cleaning Schedule \u2013 ' + propertyName;\nconst bodyText = `Hi,\\n\\nPlease note that the checkout date for your assigned cleaning has been updated.\\n\\nProperty: ${propertyName}\\nBooking Reference: ${bookingUid}\\nNew Cleaning Date: ${newCleaningDate}\\nNew Cleaning Start Time: ${newCleaningTime} UTC\\n\\nYour calendar event has been updated automatically.\\n\\nPlease do not reply to this email. Contact your manager if you have questions.`;\nreturn [{ json: { toEmail: cleanerEmail, subject, body: bodyText } }];"
       },
       "id": "ebd45125-ade3-4b71-8841-f17e5363dfa6",
       "name": "Prepare Reassignment Email",
@@ -1260,6 +1260,46 @@
           "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Properties",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "propertyUid",
+              "lookupValue": "={{ $('Receive Extended Checkout Payload').item.json.body.propertyUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
+      "name": "Lookup Property Name",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        304,
+        -272
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -1399,7 +1439,7 @@
       "main": [
         [
           {
-            "node": "Prepare Reassignment Email",
+            "node": "Lookup Property Name",
             "type": "main",
             "index": 0
           }
@@ -1455,6 +1495,17 @@
         [
           {
             "node": "Log to ExtendedCheckouts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Property Name": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reassignment Email",
             "type": "main",
             "index": 0
           }

@@ -332,14 +332,14 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "CleanersProfile",
+          "value": "Properties",
           "mode": "name"
         },
         "filtersUI": {
           "values": [
             {
-              "lookupColumn": "cleanerId",
-              "lookupValue": "={{ $json.cleanerId }}"
+              "lookupColumn": "propertyUid",
+              "lookupValue": "={{ $json.propertyUid }}"
             }
           ]
         },

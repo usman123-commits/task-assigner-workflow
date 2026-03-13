@@ -1,5 +1,5 @@
 {
-  "name": "PHASE 2 – Cleaner Assignment + Calendar Dispatch",
+  "name": "PHASE 2 \u2013 Cleaner Assignment + Calendar Dispatch",
   "nodes": [
     {
       "parameters": {
@@ -12,13 +12,13 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "CleanersProfile",
+          "value": "Properties",
           "mode": "name"
         },
         "options": {}
       },
       "id": "020fb8da-3d63-4751-8430-b7f5ee35c9ed",
-      "name": "Read CleanersProfile",
+      "name": "Read Properties",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Attach CleanersProfile data to each job so Assign Cleaner can use it inside the loop (no $('Read CleanersProfile') in loop).\nlet profile = [];\ntry {\n  const node = $('Read CleanersProfile');\n  if (node && typeof node.all === 'function') profile = node.all();\n} catch (_) {}\nconst items = $input.all();\nreturn items.map(item => ({ json: { ...item.json, _cleanersProfile: Array.isArray(profile) ? profile : [] } }));"
+        "jsCode": "// Attach both Properties and CleanersProfile so Assign Cleaner can cross-reference inside the loop.\nlet properties = [];\nlet cleaners = [];\ntry {\n  const pNode = $('Read Properties');\n  if (pNode && typeof pNode.all === 'function') properties = pNode.all();\n} catch (_) {}\ntry {\n  const cNode = $('Read CleanersProfile');\n  if (cNode && typeof cNode.all === 'function') cleaners = cNode.all();\n} catch (_) {}\nconst items = $input.all();\nreturn items.map(item => ({ json: {\n  ...item.json,\n  _properties: Array.isArray(properties) ? properties : [],\n  _cleanersProfile: Array.isArray(cleaners) ? cleaners : []\n} }));"
       },
       "id": "2f0e551d-30b2-4d6c-8037-83874ce6732c",
       "name": "Attach CleanersProfile",
@@ -163,7 +163,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// If Lookup returned 0 rows or empty row, use job only with fallbacks. Otherwise use first lookup row.\n// propertyName: use reservation lookup first; else get from CleanersProfile row matching propertyUid (column may be 'propertyName ' with space); else fallback to propertyUid.\nconst job = $('Split In Batches').last().json;\nconst items = $input.all();\nconst hasReservation = items.length > 0 && items[0].json?.bookingUid;\nconst lookup = hasReservation ? items[0].json : {};\nlet propertyName = (lookup.propertyName ?? '').toString().trim();\nif (!propertyName && Array.isArray(job._cleanersProfile)) {\n  const pu = (job.propertyUid ?? '').toString().trim();\n  const profileRow = job._cleanersProfile.find(r => {\n    const j = r?.json ?? r;\n    const uid = (j?.propertyUid ?? j?.['property UID'] ?? '').toString().trim();\n    return uid && uid === pu;\n  });\n  if (profileRow) {\n    const j = profileRow?.json ?? profileRow;\n    propertyName = (j?.['propertyName '] ?? j?.propertyName ?? '').toString().trim();\n  }\n}\nif (!propertyName) propertyName = (job.propertyUid ?? '').toString().trim();\nconst merged = { ...job, ...lookup, propertyName, address: lookup.address ?? job.address ?? 'Address TBD' };\nreturn [{ json: merged }];"
+        "jsCode": "// If Lookup returned 0 rows or empty row, use job only with fallbacks. Otherwise use first lookup row.\n// propertyName: use reservation lookup first; else get from Properties sheet row matching propertyUid; else fallback to propertyUid.\nconst job = $('Split In Batches').last().json;\nconst items = $input.all();\nconst hasReservation = items.length > 0 && items[0].json?.bookingUid;\nconst lookup = hasReservation ? items[0].json : {};\nlet propertyName = (lookup.propertyName ?? '').toString().trim();\nif (!propertyName && Array.isArray(job._properties)) {\n  const pu = (job.propertyUid ?? '').toString().trim();\n  const propRow = job._properties.find(r => {\n    const j = r?.json ?? r;\n    return (j?.propertyUid ?? '').toString().trim() === pu;\n  });\n  if (propRow) {\n    const j = propRow?.json ?? propRow;\n    propertyName = (j?.propertyName ?? '').toString().trim();\n  }\n}\nif (!propertyName) propertyName = (job.propertyUid ?? '').toString().trim();\nconst merged = { ...job, ...lookup, propertyName, address: lookup.address ?? job.address ?? 'Address TBD' };\nreturn [{ json: merged }];"
       },
       "id": "9ca813c5-4b97-4214-9fba-09aad3b3181c",
       "name": "Ensure One Item (Job or Reservation)",
@@ -191,7 +191,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// STEP 2 — Assign cleaner by propertyUid using CleanersProfile data attached before the loop. Columns: property UID, cleaner ID, calendar ID, email, name, contact.\nconst item = $input.first().json;\nconst propertyUid = (item.propertyUid ?? '').toString().trim();\nconst rows = Array.isArray(item._cleanersProfile) ? item._cleanersProfile : [];\nif (rows.length === 0) throw new Error('No CleanersProfile data on item. Ensure Attach CleanersProfile node runs before Split In Batches and Read CleanersProfile has rows.');\nconst get = (row, ...keys) => { const j = row && (row.json !== undefined ? row.json : row); if (!j || typeof j !== 'object') return ''; for (const k of keys) { const v = j[k]; if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim(); } return ''; };\nconst mapping = rows.find(r => {\n  const uid = get(r, 'property UID', 'propertyUid');\n  return uid && uid === propertyUid;\n});\nif (!mapping) {\n  throw new Error(`No cleaner for propertyUid: ${propertyUid}. Add a row in CleanersProfile with property UID = ${propertyUid}.`);\n}\nconst cleanerId = get(mapping, 'cleaner ID', 'cleanerId');\nconst email = get(mapping, 'email');\nconst calendarId = get(mapping, 'calendar ID', 'calendarId');\nif (!cleanerId) throw new Error(`CleanersProfile row for ${propertyUid} has no cleaner ID.`);\nconst assignedAt = new Date().toISOString();\nconst propertyNameFromProfile = get(mapping, 'propertyName ', 'propertyName');\nconst out = { ...item, cleanerId, cleanerEmail: email || item.cleanerEmail, cleanerCalendarId: calendarId || item.cleanerCalendarId, cleanerName: get(mapping, 'name'), cleanerContact: get(mapping, 'contact'), assignedAt, status: 'ASSIGNED', propertyName: propertyNameFromProfile || item.propertyName || item.propertyUid };\ndelete out._cleanersProfile;\nreturn [{ json: out }];"
+        "jsCode": "// Two-step lookup:\n// Step 1: Properties sheet \u2192 find row where propertyUid matches \u2192 get cleanerId + propertyName\n// Step 2: CleanersProfile sheet \u2192 find row where cleanerId matches \u2192 get email, calendarId, name, phone\nconst item = $input.first().json;\nconst propertyUid = (item.propertyUid ?? '').toString().trim();\n\nconst properties = Array.isArray(item._properties) ? item._properties : [];\nconst cleaners   = Array.isArray(item._cleanersProfile) ? item._cleanersProfile : [];\n\nif (properties.length === 0) throw new Error('No Properties data on item. Ensure Read Properties ran and Attach CleanersProfile passes _properties.');\nif (cleaners.length === 0)   throw new Error('No CleanersProfile data on item. Ensure Read CleanersProfile ran and Attach CleanersProfile passes _cleanersProfile.');\n\nconst get = (row, ...keys) => {\n  const j = row && (row.json !== undefined ? row.json : row);\n  if (!j || typeof j !== 'object') return '';\n  for (const k of keys) {\n    const v = j[k];\n    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();\n  }\n  return '';\n};\n\n// Step 1 \u2014 match property\nconst propRow = properties.find(r => get(r, 'propertyUid') === propertyUid);\nif (!propRow) throw new Error(`No Properties row for propertyUid: ${propertyUid}. Add it to the Properties sheet.`);\n\nconst cleanerId      = get(propRow, 'cleanerId');\nconst propertyNameFromSheet = get(propRow, 'propertyName');\nif (!cleanerId) throw new Error(`Properties row for ${propertyUid} has no cleanerId.`);\n\n// Step 2 \u2014 match cleaner\nconst cleanerRow = cleaners.find(r => get(r, 'cleanerId', 'cleaner ID') === cleanerId);\nif (!cleanerRow) throw new Error(`No CleanersProfile row for cleanerId: ${cleanerId}.`);\n\nconst email      = get(cleanerRow, 'email');\nconst calendarId = get(cleanerRow, 'calendarId', 'calendar ID');\nconst name       = get(cleanerRow, 'name');\nconst phone      = get(cleanerRow, 'phone');\n\nconst assignedAt = new Date().toISOString();\nconst out = {\n  ...item,\n  cleanerId,\n  cleanerEmail:      email      || item.cleanerEmail      || '',\n  cleanerCalendarId: calendarId || item.cleanerCalendarId || '',\n  cleanerName:       name       || item.cleanerName       || '',\n  cleanerContact:    phone      || item.cleanerContact    || '',\n  assignedAt,\n  status: 'ASSIGNED',\n  propertyName: propertyNameFromSheet || item.propertyName || item.propertyUid\n};\ndelete out._properties;\ndelete out._cleanersProfile;\nreturn [{ json: out }];"
       },
       "id": "ca3430a1-bc9e-430e-959c-835c65354303",
       "name": "Assign Cleaner",
@@ -580,7 +580,7 @@
         -832,
         -16
       ],
-      "notes": "TRUE = calendarEventId set → skip event creation (and notification). FALSE = create events + notify."
+      "notes": "TRUE = calendarEventId set \u2192 skip event creation (and notification). FALSE = create events + notify."
     },
     {
       "parameters": {
@@ -894,9 +894,9 @@
     {
       "parameters": {
         "sendTo": "={{ $('Assign Cleaner').item.json.cleanerEmail }}",
-        "subject": "=New Cleaning Assigned – {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}",
+        "subject": "=New Cleaning Assigned \u2013 {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}",
         "emailType": "text",
-        "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}\n\nDate: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime, { zone: 'utc' }).toFormat('yyyy-MM-dd') }}\n\nTime: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime, { zone: 'utc' }).toFormat('HH:mm') }} - {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.endTime, { zone: 'utc' }).toFormat('HH:mm') }}\n\nGuest Count: {{ $('Assign Cleaner').item.json.adultCount + $('Assign Cleaner').item.json.childrenCount }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created – check your calendar' }}\n\nClock-In Link:\n{{ $('Generate ClockIn Form Link').item.json.clockInLink }}\n\nThis email serves as official assignment confirmation.",
+        "message": "=You have been assigned a new cleaning job.\n\nProperty: {{ $('Assign Cleaner').item.json.propertyName || $('Assign Cleaner').item.json.propertyUid }}\n\nDate: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime, { zone: 'utc' }).toFormat('yyyy-MM-dd') }}\n\nTime: {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.startTime, { zone: 'utc' }).toFormat('HH:mm') }} - {{ DateTime.fromISO($('Calculate Cleaning Time').item.json.endTime, { zone: 'utc' }).toFormat('HH:mm') }}\n\nGuest Count: {{ $('Assign Cleaner').item.json.adultCount + $('Assign Cleaner').item.json.childrenCount }}\nBooking Reference: {{ $('Calculate Cleaning Time').last().json.bookingUid }}\n\nCalendar Event:\n{{ $json.calendarEventId ? 'https://calendar.google.com/calendar/event?eid=' + encodeURIComponent($json.calendarEventId) : 'Event created \u2013 check your calendar' }}\n\nClock-In Link:\n{{ $('Generate ClockIn Form Link').item.json.clockInLink }}\n\nThis email serves as official assignment confirmation.",
         "options": {}
       },
       "id": "056e55ee-21bf-4451-8f78-c74fe68c981b",
@@ -1756,21 +1756,41 @@
       ],
       "id": "f55945d5-da95-4956-a8b0-430a4886ce50",
       "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleanersProfile",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Read CleanersProfile",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -3968,
+        400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Read CleanersProfile": {
-      "main": [
-        [
-          {
-            "node": "Single Item for Read Jobs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Single Item for Read Jobs": {
       "main": [
         [
@@ -2025,7 +2045,29 @@
       "main": [
         [
           {
+            "node": "Read Properties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Properties": {
+      "main": [
+        [
+          {
             "node": "Read CleanersProfile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CleanersProfile": {
+      "main": [
+        [
+          {
+            "node": "Single Item for Read Jobs",
             "type": "main",
             "index": 0
           }
