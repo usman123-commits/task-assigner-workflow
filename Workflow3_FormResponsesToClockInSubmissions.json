@@ -26,13 +26,13 @@
         },
         "options": {}
       },
-      "id": "ac7dbbca-b849-4b49-9538-baa0837040ae",
+      "id": "cd0f8664-2864-40d6-a911-226686dc6b85",
       "name": "Google Sheets Trigger",
       "type": "n8n-nodes-base.googleSheetsTrigger",
       "typeVersion": 1,
       "position": [
-        976,
-        304
+        560,
+        544
       ],
       "credentials": {
         "googleSheetsTriggerOAuth2Api": {
@@ -44,16 +44,15 @@
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "id": "55d99c6c-89bc-4d05-86ec-53ad4cac7d24",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1088,
-        304
+        784,
+        544
       ],
       "notes": "Process one form submission per loop. Loop back from Insert Structured Row to process next item."
     },
@@ -61,13 +60,13 @@
       "parameters": {
         "jsCode": "// Normalize form item and detect short Maps link (so we can branch: short = HTTP Request, else = ParseAndValidate).\nconst item = $input.first().json;\nconst get = (name) => {\n  const v = item[name];\n  if (v !== undefined && v !== null) return v;\n  const key = Object.keys(item).find(k => k.trim() === name);\n  return key !== undefined ? item[key] : undefined;\n};\nconst captureLocation = (get('Capture Location') ?? '').toString().trim();\nconst isShortLink = /^(https?:\\/\\/)?(www\\.)?(maps\\.app\\.goo\\.gl|goo\\.gl\\/maps)\\/\\S+/i.test(captureLocation);\nreturn [{ json: { ...item, captureLocation, isShortLink } }];"
       },
-      "id": "69e871eb-b6c1-4a98-be3f-347893d12dec",
+      "id": "d340c845-ce6c-42f5-a9ec-e4d5a1d95924",
       "name": "Normalize and Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        304
+        1008,
+        464
       ],
       "notes": "Add captureLocation and isShortLink. Short link → HTTP Request branch; else → ParseAndValidate."
     },
@@ -95,13 +94,13 @@
         },
         "options": {}
       },
-      "id": "d3c1eb23-5ee5-4637-89eb-38109fdb5c13",
+      "id": "2973f084-be5c-472d-9fda-6f0d996a333f",
       "name": "Is Short Link?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1424,
-        304
+        1232,
+        464
       ],
       "notes": "TRUE = short Maps link → resolve via HTTP Request. FALSE = full URL or lat,lng → ParseAndValidate."
     },
@@ -110,13 +109,13 @@
         "url": "={{ $json.captureLocation }}",
         "options": {}
       },
-      "id": "b4637ee7-9b18-4df5-8433-8115c5bc33f5",
+      "id": "b4fe1b6f-8377-484c-a552-0f930a371578",
       "name": "Resolve Short Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1648,
-        208
+        1456,
+        368
       ],
       "notes": "GET short Maps URL; follow redirects. Response body contains coords (e.g. q=lat,lng)."
     },
@@ -124,13 +123,13 @@
       "parameters": {
         "jsCode": "// Parse coords from HTTP response body (Google Maps page HTML). Form data from Normalize and Check.\nconst form = $('Normalize and Check').first().json;\nconst get = (name) => { const v = form[name]; if (v !== undefined && v !== null) return v; const key = Object.keys(form).find(k => k.trim() === name); return key !== undefined ? form[key] : undefined; };\nconst bookingUid = get('Booking ID');\nconst cleanerId = get('Cleaner ID');\nconst confirmArrival = (get('Confirm Arrival') ?? '').toString().trim();\nif (!confirmArrival || confirmArrival.toLowerCase() !== 'yes') throw new Error('Arrival not confirmed');\n\nconst resp = $input.first().json;\nconst raw = (resp.data != null ? resp.data : resp.body != null ? resp.body : typeof resp === 'string' ? resp : JSON.stringify(resp));\nconst str = typeof raw === 'string' ? raw : String(raw);\n// Match q=lat%2Clng or lat,lng or 3dLat...4dLng in HTML\nlet m = str.match(/q=(-?\\d+\\.\\d+)%2C(-?\\d+\\.\\d+)/);\nif (!m) m = str.match(/(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)/);\nif (!m) m = str.match(/3d(-?\\d+\\.\\d+)[^4]*4d(-?\\d+\\.\\d+)/);\nif (!m) throw new Error('Could not find coordinates in short link response.');\nconst gpsLat = m[1];\nconst gpsLng = m[2];\n\nreturn [{\n  json: {\n    bookingUid,\n    cleanerId,\n    gpsLat,\n    gpsLng,\n    submissionTimestamp: new Date().toISOString(),\n    processingStatus: 'PENDING',\n    resultMessage: '',\n    processedAt: ''\n  }\n}];"
       },
-      "id": "e9cb385d-cdc6-427e-9a22-c989295870f7",
+      "id": "23a9e229-e85b-4843-b173-520ac6e32fb9",
       "name": "Parse Short Link Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1872,
-        208
+        1680,
+        368
       ],
       "notes": "Extract lat,lng from response body; output same structure as ParseAndValidate."
     },
@@ -138,13 +137,13 @@
       "parameters": {
         "jsCode": "// ParseAndValidate: full URL, lat,lng, or DMS. Use captureLocation when present (from Normalize and Check).\nconst item = $('Normalize and Check').first().json;\nconst get = (name) => {\n  const v = item[name];\n  if (v !== undefined && v !== null) return v;\n  const key = Object.keys(item).find(k => k.trim() === name);\n  return key !== undefined ? item[key] : undefined;\n};\nconst bookingUid = get('Booking ID');\nconst cleanerId = get('Cleaner ID');\nconst confirmArrival = (get('Confirm Arrival') ?? '').toString().trim();\nconst mapsLink = (item.captureLocation != null ? item.captureLocation : get('Capture Location') ?? '').toString().trim();\nif (!confirmArrival || confirmArrival.toLowerCase() !== 'yes') throw new Error('Arrival not confirmed');\nif (!mapsLink) throw new Error('Location link missing');\n\nfunction parseLatLngFromString(str) {\n  const latLngRegex = /(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)/;\n  const m = str.match(latLngRegex);\n  if (m) return { lat: m[1], lng: m[2] };\n  const dmsRegex = /(\\d+)[°º]\\s*(\\d+)['′]\\s*([\\d.]+)[\"″]?\\s*([NS])\\s*(\\d+)[°º]\\s*(\\d+)['′]\\s*([\\d.]+)[\"″]?\\s*([EW])/i;\n  const dms = str.match(dmsRegex);\n  if (!dms) return null;\n  const latSign = dms[4].toUpperCase() === 'S' ? -1 : 1;\n  const lngSign = dms[8].toUpperCase() === 'W' ? -1 : 1;\n  const lat = latSign * (parseInt(dms[1],10) + parseInt(dms[2],10)/60 + parseFloat(dms[3])/3600);\n  const lng = lngSign * (parseInt(dms[5],10) + parseInt(dms[6],10)/60 + parseFloat(dms[7])/3600);\n  return { lat: String(lat), lng: String(lng) };\n}\nconst parsed = parseLatLngFromString(mapsLink);\nif (!parsed) throw new Error('Invalid Google Maps link format: could not find coordinates (use a link that opens to a pin, or paste lat,lng or DMS).');\nreturn [{ json: { bookingUid, cleanerId, gpsLat: parsed.lat, gpsLng: parsed.lng, submissionTimestamp: new Date().toISOString(), processingStatus: 'PENDING', resultMessage: '', processedAt: '' } }];"
       },
-      "id": "f3f979b3-ef8f-4e60-8f2d-22893277e29f",
+      "id": "462bb2b7-e33f-4c46-8838-8737a999d59a",
       "name": "ParseAndValidate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1872,
-        400
+        1680,
+        560
       ],
       "notes": "Extract fields, validate arrival and location, parse lat/lng from full URL, lat,lng, or DMS."
     },
@@ -176,13 +175,13 @@
         },
         "options": {}
       },
-      "id": "57477611-843e-4d7c-ba08-e24f37174dbe",
+      "id": "66071746-08b4-4062-a4a8-56c52d90df14",
       "name": "Lookup Existing ClockIn",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        2096,
-        304
+        1904,
+        464
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -195,15 +194,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Duplicate protection: if this bookingUid already has an APPROVED clock-in, skip insert but still return 1 item so the batch loop continues.\nconst existing = $input.all();\nlet parsed;\ntry { parsed = $('Parse Short Link Response').first().json; } catch (_) {}\nif (!parsed) try { parsed = $('ParseAndValidate').first().json; } catch (_) {}\nif (!parsed) throw new Error('Missing parsed submission');\nconst hasApproved = existing.some(i => (i.json?.processingStatus ?? '').toString().trim() === 'APPROVED');\nif (hasApproved) return [{ json: { skipInsert: true } }];\nreturn [{ json: { ...parsed, skipInsert: false } }];"
+        "jsCode": "const existing = $input.all();\nlet parsed;\nlet parsedFromShortLink;\nlet parsedFromDirect;\ntry { parsedFromShortLink = $('Parse Short Link Response').first().json; } catch (_) {}\ntry { parsedFromDirect = $('ParseAndValidate').first().json; } catch (_) {}\n\n// Pick the one whose submissionTimestamp is more recent — that is\n// the one that actually just ran for this branch.\nif (parsedFromShortLink && parsedFromDirect) {\n  const tsA = new Date(parsedFromShortLink.submissionTimestamp || 0).getTime();\n  const tsB = new Date(parsedFromDirect.submissionTimestamp || 0).getTime();\n  parsed = tsA >= tsB ? parsedFromShortLink : parsedFromDirect;\n} else {\n  parsed = parsedFromShortLink || parsedFromDirect;\n}\nif (!parsed) throw new Error('Missing parsed submission');\n\nconst hasApproved = existing.some(i => \n  (i.json?.processingStatus ?? '').toString().trim() === 'APPROVED');\nif (hasApproved) return [{ json: { skipInsert: true } }];\nreturn [{ json: { ...parsed, skipInsert: false } }];"
       },
-      "id": "702b60df-221f-4b08-909d-8a5d71d7d7f8",
+      "id": "7903a40b-35dc-4b28-9b67-ebaf397b6db0",
       "name": "Reject If Already Approved",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2320,
-        304
+        2128,
+        544
       ],
       "alwaysOutputData": false,
       "notes": "If any existing row has processingStatus=APPROVED, return { skipInsert: true } so loop continues; else return parsed item with skipInsert: false."
@@ -232,13 +231,13 @@
         },
         "options": {}
       },
-      "id": "b5c6d7e8-f9a0-1234-b567-c89012345678",
+      "id": "794f5407-05c6-443c-a376-587cfc3e0d7f",
       "name": "Should Insert?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2432,
-        304
+        2352,
+        544
       ],
       "notes": "TRUE = insert row. FALSE = already approved, skip insert (loop continues via Reject → Split In Batches)."
     },
@@ -350,13 +349,13 @@
         },
         "options": {}
       },
-      "id": "3dadc411-0ff3-42c9-be64-d8888c83f5c0",
+      "id": "b855a1b1-ace4-4b50-8842-2c1defd432d6",
       "name": "Insert Structured Row",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        2544,
-        304
+        2576,
+        544
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -382,6 +381,7 @@
     },
     "Split In Batches": {
       "main": [
+        [],
         [
           {
             "node": "Normalize and Check",
@@ -498,7 +498,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "4e2ef8e3-079b-4e28-a8d8-2329ce260309",
+  "versionId": "337aa91f-2dbe-4dbb-ace6-860b28aeb124",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "6a182e137b0efa52bc5ca70ffff0b22c853fa1e0bdd46efb5c0d20201c291f2e"
