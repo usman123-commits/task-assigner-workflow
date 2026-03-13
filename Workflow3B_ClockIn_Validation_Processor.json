@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "ba1df154-575b-45c3-9ee9-8e5501667228",
+      "id": "4269fd89-ce4c-412d-945e-e1b6cbfd2ed8",
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -2944,
-        80
+        -1200,
+        864
       ],
       "notes": "Runs every minute. For 'Row Updated' use Google Sheets Trigger on ClockInSubmissions if available."
     },
@@ -38,13 +38,13 @@
         },
         "options": {}
       },
-      "id": "65e7847e-e940-4a49-adec-b16386fddbb3",
+      "id": "1aaed338-4cc5-47c8-bcc1-3474658042c5",
       "name": "Read ClockInSubmissions",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -2720,
-        80
+        -976,
+        864
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -58,13 +58,13 @@
       "parameters": {
         "jsCode": "// Only continue if processingStatus = PENDING (per spec).\nconst items = $input.all();\nconst pending = items.filter(i => (i.json?.processingStatus ?? '').toString().trim() === 'PENDING');\nreturn pending.length ? pending : [];"
       },
-      "id": "349381b2-b467-435c-bee4-b00a4535f452",
+      "id": "f5a042a4-52fc-44a8-91f8-66246b89e85c",
       "name": "Only PENDING",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2496,
-        80
+        -752,
+        864
       ],
       "notes": "Only continue if processingStatus = PENDING."
     },
@@ -92,13 +92,13 @@
         },
         "options": {}
       },
-      "id": "1e149b67-eb65-40dc-8f11-dce3acb124b1",
+      "id": "fda94f81-56bb-461b-8e02-ed185c0d4ac6",
       "name": "Get Booking",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -2272,
-        80
+        -528,
+        864
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -112,13 +112,13 @@
       "parameters": {
         "jsCode": "// Merge each submission with its Get Booking result (same index).\nconst pendingItems = $('Only PENDING').all();\nconst jobItems = $input.all();\nreturn jobItems.map((jobItem, i) => {\n  const submission = pendingItems[i]?.json || {};\n  const job = jobItem.json || {};\n  return { json: { ...submission, ...job } };\n});"
       },
-      "id": "cfd29097-c6c2-4af5-a513-ad41db0b8f45",
+      "id": "874efefd-9c5f-4e64-8e2c-38365053cfa4",
       "name": "Merge Submission and Job",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1824,
-        80
+        -80,
+        864
       ],
       "notes": "Combine submission + CleaningJobs row for cleaner validation."
     },
@@ -146,13 +146,13 @@
         },
         "options": {}
       },
-      "id": "254be910-7b95-4b84-8d0f-3a5d357ff9bc",
+      "id": "f1e0bfda-eb19-4d4c-991b-2aea82ced97f",
       "name": "Validate Cleaner Assignment",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1600,
-        80
+        144,
+        864
       ],
       "notes": "TRUE = cleaner assigned to booking; FALSE = reject and stop."
     },
@@ -277,13 +277,13 @@
         },
         "options": {}
       },
-      "id": "23eec1c9-3f9c-4dd5-af40-8de174619e13",
+      "id": "037dc4fa-e015-4bc3-b2de-3d3b4ed376e4",
       "name": "Reject Cleaner Not Assigned",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -1376,
-        -112
+        368,
+        672
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -297,13 +297,13 @@
       "parameters": {
         "jsCode": "// Pass through TRUE-branch items so Merge Coords can reference them reliably.\nreturn $input.all();"
       },
-      "id": "b8a915ad-315d-4ff6-a4cf-c727ea68b885",
+      "id": "5f058704-7dd2-4f78-899b-2ddaa14a087f",
       "name": "Pass TRUE items",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1376,
-        80
+        368,
+        864
       ],
       "notes": "Holds only TRUE-branch items for combine-by-position in Merge Coords."
     },
@@ -311,13 +311,13 @@
       "parameters": {
         "jsCode": "// Combine by position: submission+job (Pass TRUE items) with coords (Get Property Coordinates).\nconst submissionItems = $('Pass TRUE items').all();\nconst coordsItems = $('Refining feilds').all();\nconst len = Math.min(submissionItems.length, coordsItems.length);\nif (len === 0) return [];\nconst out = [];\nfor (let i = 0; i < len; i++) {\n  const sub = submissionItems[i]?.json || {};\n  const coord = coordsItems[i]?.json || {};\n  out.push({ json: { ...sub, ...coord } });\n}\nreturn out;"
       },
-      "id": "f7f9ef5b-527a-45fb-9f04-a90351d81488",
+      "id": "9520467b-a8aa-40ea-98e1-f4b7c95fa399",
       "name": "Merge Coords with Submission",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -928,
-        272
+        816,
+        1056
       ],
       "notes": "Combine by position: TRUE-branch (submission+job) + coords for distance calc."
     },
@@ -345,13 +345,13 @@
         },
         "options": {}
       },
-      "id": "56af4c56-e3de-4f4c-9252-231af5b15008",
+      "id": "2ed9f433-4945-4ea8-96ff-8c6466d89c6e",
       "name": "Get Property Coordinates",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -1376,
-        272
+        368,
+        1056
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -365,13 +365,13 @@
       "parameters": {
         "jsCode": "// Haversine distance in meters. Input = Merge output (submission+job+coords combined by position).\nconst items = $input.all();\nconst R = 6371000;\nconst toRad = deg => deg * (Math.PI / 180);\nreturn items.map(item => {\n  const j = item.json || {};\n  const userLat = parseFloat(j.gpsLat);\n  const userLng = parseFloat(j.gpsLng);\n  const propertyLat = parseFloat(j.latitude);\n  const propertyLng = parseFloat(j.longitude);\n  let distance = NaN;\n  if (Number.isFinite(userLat) && Number.isFinite(userLng) && Number.isFinite(propertyLat) && Number.isFinite(propertyLng)) {\n    const dLat = toRad(propertyLat - userLat);\n    const dLng = toRad(propertyLng - userLng);\n    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(userLat))*Math.cos(toRad(propertyLat))*Math.sin(dLng/2)*Math.sin(dLng/2);\n    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n    distance = R * c;\n  }\n  return { json: { ...j, distance: Number.isFinite(distance) ? distance : 999999 } };\n});"
       },
-      "id": "3ecb7c76-f0b1-475e-8613-4e10bc526a87",
+      "id": "d259d0ae-fc38-43f1-b6a1-542acf5418ba",
       "name": "DistanceCalculation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -704,
-        272
+        1040,
+        1056
       ],
       "notes": "Haversine: user lat/lng vs property lat/lng; return distance in meters."
     },
@@ -399,13 +399,13 @@
         },
         "options": {}
       },
-      "id": "aa475fff-3e87-4805-b1df-3d2d05c9539a",
+      "id": "2911e49f-cc6e-4d47-9449-c75bf05e2ed6",
       "name": "Radius Check",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -480,
-        272
+        1264,
+        1056
       ],
       "notes": "TRUE = inside 100m → APPROVED; FALSE = outside → REJECTED."
     },
@@ -530,13 +530,13 @@
         },
         "options": {}
       },
-      "id": "5cbb975a-6053-4fd4-832c-8726d9c7eca6",
+      "id": "7babce1e-5d47-4988-ac11-dfa83c0be5c1",
       "name": "Update APPROVED",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -256,
-        176
+        1488,
+        960
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -837,13 +837,13 @@
         },
         "options": {}
       },
-      "id": "8aaffb8e-52bf-4e9c-aa33-67e57ff0ecee",
+      "id": "539b3f22-491a-4de0-b754-3e7f651af2ce",
       "name": "Update CleaningJobs",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -32,
-        176
+        2016,
+        960
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -973,13 +973,13 @@
         },
         "options": {}
       },
-      "id": "58afc673-01da-4ff1-989f-4328e4a65e3d",
+      "id": "ff26d8fd-7fec-4121-8e22-db24b342c116",
       "name": "Update REJECTED (radius)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
       "position": [
-        -256,
-        368
+        1488,
+        1152
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -999,10 +999,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1152,
-        272
+        592,
+        1056
       ],
-      "id": "843200e9-ec12-4b05-a881-97759d7ddb88",
+      "id": "e29aa6a3-d53e-4bac-b808-fca4c6560547",
       "name": "Refining feilds"
     },
     {
@@ -1018,11 +1018,121 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2048,
-        80
+        -304,
+        864
       ],
-      "id": "feb8c523-7bb6-4fdc-a167-69b2652c61c0",
+      "id": "3f60e0d2-41aa-490c-b6d8-0edc2d8f2699",
       "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Radius Check').item.json.email }}",
+        "subject": "Clock-In Rejected – Location Outside Allowed Radius",
+        "emailType": "text",
+        "message": "=Hi {{ $('Radius Check').item.json.assignedCleaner }}, Your recent clock-in attempt could not be accepted because your location was detected outside the allowed distance from the property.\n Property: {{ $('Radius Check').item.json['propertyName '] }}\n Booking Reference: {{ $('Radius Check').item.json.bookingUid }}\n Detected Distance in meters : {{ $('Radius Check').item.json.distance }}\nPlease move closer to the property and try clocking in again. If you believe this is an error, contact your manager. Thank you ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2352,
+        1168
+      ],
+      "id": "3f84ba3d-299a-495f-b729-c61e008f4c96",
+      "name": "Send Rejected message",
+      "webhookId": "c00aa8d4-7bd4-4a09-aacb-99a631fad35e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6sr232YN6z3c4tiW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        1392
+      ],
+      "id": "f9f2e08a-282f-46a4-b4f2-eca452573662",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "list",
+          "cachedResultName": "hostfully",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 821160971,
+          "mode": "list",
+          "cachedResultName": "CleanersProfile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g/edit#gid=821160971"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "cleanerId",
+              "lookupValue": "={{ $('Radius Check').item.json.cleanerIdFromForm }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1840,
+        1152
+      ],
+      "id": "d9dee007-a648-48ed-82e2-431f37ee36ee",
+      "name": "Getting Cleaners Profile",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b4b06783-388d-4038-8191-216a013ee103",
+              "leftValue": "= {{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2064,
+        1184
+      ],
+      "id": "082b3c5a-2f4b-4934-b67b-cc4d20e6ba1a",
+      "name": "Checking If Cleaner Exists"
     },
     {
       "parameters": {
@@ -1198,15 +1308,39 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        176,
-        176
+        2368,
+        960
       ],
-      "id": "b8a61595-51e7-4798-a5a9-baa9943545fc",
-      "name": "Update row in sheet",
+      "id": "84d5fbff-8bac-40fb-a6a6-4a1dbdd80cf5",
+      "name": "Updating Status in Reservation",
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "q52dbWoN6OaKRDZO",
           "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Radius Check').item.json.email }}",
+        "subject": "Clock-In Confirmed – {{ $('Radius Check').item.json['propertyName '] }}",
+        "emailType": "text",
+        "message": "=Hi {{ $('Radius Check').item.json.assignedCleaner }}, Your clock-in has been successfully recorded.\nProperty: {{ $('Radius Check').item.json['propertyName '] }}\nBooking Reference: {{ $('Radius Check').item.json.bookingUid }}\nClock-In Time (UTC): {{ $('Radius Check').item.json.scheduledCleaningTimeUTC }}\n\nLocation Status: Within allowed radius You can proceed with the cleaning as scheduled. Thank you, ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2608,
+        960
+      ],
+      "id": "164cc0fe-a363-4de5-ad13-d5d85f0bfd0f",
+      "name": "Send Aprooved Message",
+      "webhookId": "c00aa8d4-7bd4-4a09-aacb-99a631fad35e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6sr232YN6z3c4tiW",
+          "name": "Gmail account"
         }
       }
     }
@@ -1379,7 +1513,58 @@
       "main": [
         [
           {
-            "node": "Update row in sheet",
+            "node": "Updating Status in Reservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update REJECTED (radius)": {
+      "main": [
+        [
+          {
+            "node": "Getting Cleaners Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Getting Cleaners Profile": {
+      "main": [
+        [
+          {
+            "node": "Checking If Cleaner Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checking If Cleaner Exists": {
+      "main": [
+        [
+          {
+            "node": "Send Rejected message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Updating Status in Reservation": {
+      "main": [
+        [
+          {
+            "node": "Send Aprooved Message",
             "type": "main",
             "index": 0
           }
@@ -1393,7 +1578,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "f021bb32-c588-40e8-a844-a437505564b1",
+  "versionId": "1edaaa86-feb7-49e8-b90a-21776427842c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "6a182e137b0efa52bc5ca70ffff0b22c853fa1e0bdd46efb5c0d20201c291f2e"
