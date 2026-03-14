@@ -704,7 +704,7 @@
         2912,
         416
       ],
-      "notes": "When reservation exists: TRUE = no cleaningJobId \u2192 create cleaning job; FALSE = has cleaning job \u2192 skip."
+      "notes": "When reservation exists: TRUE = no cleaningJobId → create cleaning job; FALSE = has cleaning job → skip."
     },
     {
       "parameters": {
@@ -1241,7 +1241,7 @@
           "values": [
             {
               "lookupColumn": "bookingUid",
-              "lookupValue": "={{ $json.bookingUid }}"
+              "lookupValue": "={{ $json.uid }}"
             }
           ]
         },
@@ -1265,7 +1265,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const candidate = $('Detect Cancellations').item.json;\nconst lookup = $input.first()?.json ?? {};\nconst bookingUid = (candidate.bookingUid ?? '').toString().trim();\n// Skip if no reservation row found\nif (!lookup.bookingUid) return [];\n// Skip if already cancelled\nconst status = (lookup.cleaningStatus ?? '').toString().trim().toUpperCase();\nif (status === 'CANCELLED') return [];\nreturn [{ json: candidate }];"
+        "jsCode": "const candidate = $('Detect Cancellations').item.json;\nconst lookup = $input.first()?.json ?? {};\nconst bookingUid = (candidate.uid ?? '').toString().trim();\n// Skip if no reservation row found\nif (!lookup.bookingUid) return [];\n// Skip if already cancelled\nconst status = (lookup.cleaningStatus ?? '').toString().trim().toUpperCase();\nif (status === 'CANCELLED') return [];\nreturn [{ json: candidate }];"
       },
       "id": "node_cancellation_guard",
       "name": "Cancellation Idempotency Guard",
@@ -1286,7 +1286,7 @@
           "parameters": [
             {
               "name": "bookingUid",
-              "value": "={{ $json.bookingUid }}"
+              "value": "={{ $json.uid }}"
             },
             {
               "name": "propertyUid",
