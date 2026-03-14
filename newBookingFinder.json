@@ -704,7 +704,7 @@
         2912,
         416
       ],
-      "notes": "When reservation exists: TRUE = no cleaningJobId → create cleaning job; FALSE = has cleaning job → skip."
+      "notes": "When reservation exists: TRUE = no cleaningJobId \u2192 create cleaning job; FALSE = has cleaning job \u2192 skip."
     },
     {
       "parameters": {
@@ -1013,13 +1013,34 @@
         "specifyBody": "keypair",
         "bodyParameters": {
           "parameters": [
-            { "name": "bookingUid", "value": "={{ $json.bookingUid }}" },
-            { "name": "propertyUid", "value": "={{ $json.propertyUid }}" },
-            { "name": "newCheckOut", "value": "={{ $json.newCheckOut }}" },
-            { "name": "newCheckoutTimeUTC", "value": "={{ $json.newCheckoutTimeUTC }}" },
-            { "name": "newScheduledCleaningTimeUTC", "value": "={{ $json.newScheduledCleaningTimeUTC }}" },
-            { "name": "newCleaningDate", "value": "={{ $json.newCleaningDate }}" },
-            { "name": "newCleaningTime", "value": "={{ $json.newCleaningTime }}" }
+            {
+              "name": "bookingUid",
+              "value": "={{ $json.bookingUid }}"
+            },
+            {
+              "name": "propertyUid",
+              "value": "={{ $json.propertyUid }}"
+            },
+            {
+              "name": "newCheckOut",
+              "value": "={{ $json.newCheckOut }}"
+            },
+            {
+              "name": "newCheckoutTimeUTC",
+              "value": "={{ $json.newCheckoutTimeUTC }}"
+            },
+            {
+              "name": "newScheduledCleaningTimeUTC",
+              "value": "={{ $json.newScheduledCleaningTimeUTC }}"
+            },
+            {
+              "name": "newCleaningDate",
+              "value": "={{ $json.newCleaningDate }}"
+            },
+            {
+              "name": "newCleaningTime",
+              "value": "={{ $json.newCleaningTime }}"
+            }
           ]
         },
         "options": {}
@@ -1190,6 +1211,99 @@
       ],
       "id": "909a720c-0a00-4fe9-9539-be7f2d038402",
       "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = $('Accumulate Leads').last().json?.accumulatedLeads ?? [];\nconst candidates = leads.filter(l =>\n  l.type === 'BOOKING' &&\n  l.status === 'CANCELLED'\n);\nreturn candidates.map(c => ({ json: c }));"
+      },
+      "id": "node_detect_cancellations",
+      "name": "Detect Cancellations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.bookingUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_lookup_reservation",
+      "name": "Lookup Reservation for Cancellation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1792,
+        1060
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidate = $('Detect Cancellations').item.json;\nconst lookup = $input.first()?.json ?? {};\nconst bookingUid = (candidate.bookingUid ?? '').toString().trim();\n// Skip if no reservation row found\nif (!lookup.bookingUid) return [];\n// Skip if already cancelled\nconst status = (lookup.cleaningStatus ?? '').toString().trim().toUpperCase();\nif (status === 'CANCELLED') return [];\nreturn [{ json: candidate }];"
+      },
+      "id": "node_cancellation_guard",
+      "name": "Cancellation Idempotency Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_N8N_WEBHOOK_BASE_URL/webhook/cancellation-handler",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "bookingUid",
+              "value": "={{ $json.bookingUid }}"
+            },
+            {
+              "name": "propertyUid",
+              "value": "={{ $json.propertyUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_trigger_cancellation",
+      "name": "Trigger Cancellation Handler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2240,
+        1060
+      ]
     }
   ],
   "pinData": {},
@@ -1348,6 +1462,11 @@
             "node": "Detect Extended Checkouts",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Detect Cancellations",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1474,6 +1593,39 @@
         [
           {
             "node": "Read Last Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Cancellations": {
+      "main": [
+        [
+          {
+            "node": "Lookup Reservation for Cancellation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Reservation for Cancellation": {
+      "main": [
+        [
+          {
+            "node": "Cancellation Idempotency Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancellation Idempotency Guard": {
+      "main": [
+        [
+          {
+            "node": "Trigger Cancellation Handler",
             "type": "main",
             "index": 0
           }

@@ -1,0 +1,879 @@
+{
+  "name": "cancellationHandler",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "cancellation-handler",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Receive Cancellation Payload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "handler_node_1"
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "id"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "bookingUid",
+              "lookupValue": "={{ $json.body.bookingUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Lookup Cleaning Job",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        200,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Cancellation Payload').item.json.body || {};\nconst items = $input.all();\nconst first = items[0]?.json || {};\nconst hasJob = items.length > 0 && !!(first.bookingUid ?? '').toString().trim();\nreturn [{ json: { ...body, ...(hasJob ? first : {}), _jobFound: hasJob } }];"
+      },
+      "name": "Prepare Cancellation Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "handler_node_3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._jobFound }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Job Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ],
+      "id": "handler_node_4"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.status }}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "equal",
+              "value2": "PENDING",
+              "outputKey": "PENDING"
+            },
+            {
+              "operation": "equal",
+              "value2": "ASSIGNED",
+              "outputKey": "ASSIGNED"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "name": "Route by Job Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -200
+      ],
+      "id": "handler_node_5"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "CANCELLED"
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update CleaningJob CANCELLED PENDING",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1100,
+        -400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_6"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cleaningStatus": "CANCELLED"
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Reservation CANCELLED PENDING",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        -400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Cancellation Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst cancellationId = (body.bookingUid || '') + '_CANCEL_' + Date.now();\nreturn [{ json: {\n  cancellationId,\n  bookingUid:             body.bookingUid  || '',\n  propertyUid:            body.propertyUid || '',\n  jobStatusAtCancellation: job.status      || '',\n  cleanerId:              job.cleanerId    || '',\n  calendarEventId:        job.calendarEventId || '',\n  cancelledAtUTC:         new Date().toISOString(),\n  cleanerNotified:        'false'\n} }];"
+      },
+      "name": "Prepare Log Row PENDING",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        -400
+      ],
+      "id": "handler_node_8"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CancelledBookings",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "name": "Log to CancelledBookings PENDING",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1700,
+        -400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_9"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleaningJobs",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "CANCELLED",
+            "calendarStatus": "CANCELLED",
+            "calendarEventId": "",
+            "adminCalendarEventId": ""
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update CleaningJob CANCELLED ASSIGNED",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1100,
+        -200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_10"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cleaningStatus": "CANCELLED"
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Reservation CANCELLED ASSIGNED",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        -200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_11"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "usman2acountf@gmail.com",
+          "mode": "id"
+        },
+        "eventId": "={{ $('Lookup Cleaning Job').item.json.adminCalendarEventId }}",
+        "updateFields": {
+          "summary": "CANCELLED – {{ $('Lookup Cleaning Job').item.json.propertyUid }}"
+        }
+      },
+      "name": "Update Admin Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        -200
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "zieubUQMxpWLThGP",
+          "name": "Google Calendar account"
+        }
+      },
+      "id": "handler_node_12"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Lookup Cleaning Job').item.json.calendarId }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $('Lookup Cleaning Job').item.json.calendarEventId }}",
+        "updateFields": {
+          "summary": "CANCELLED – {{ $('Lookup Cleaning Job').item.json.propertyUid }}"
+        }
+      },
+      "name": "Update Cleaner Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        -200
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "zieubUQMxpWLThGP",
+          "name": "Google Calendar account"
+        }
+      },
+      "id": "handler_node_13"
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CleanersProfile",
+          "mode": "id"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "cleanerId",
+              "lookupValue": "={{ $('Lookup Cleaning Job').item.json.cleanerId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Lookup Cleaner Email",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1900,
+        -200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_14"
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Properties",
+          "mode": "id"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "propertyUid",
+              "lookupValue": "={{ $('Receive Cancellation Payload').item.json.body.propertyUid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Lookup Property Name",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2100,
+        -200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_15"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Cancellation Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst profile = $('Lookup Cleaner Email').item.json || {};\nconst prop = $('Lookup Property Name').item.json || {};\nconst cleanerEmail = (profile['email'] || profile['cleanerEmail'] || '').toString().trim();\nconst propertyName = (prop.propertyName || body.propertyUid || '').toString().trim();\nconst subject = 'Booking Cancelled – ' + propertyName;\nconst bodyText = `Hi,\\n\\nPlease note that the following booking has been cancelled by the guest.\\n\\nProperty: ${propertyName}\\nBooking Reference: ${body.bookingUid || ''}\\n\\nYour calendar event for this cleaning has been marked as cancelled. No action is required on your part.\\n\\nContact your manager if you have any questions.`;\nreturn [{ json: { toEmail: cleanerEmail, subject, body: bodyText } }];"
+      },
+      "name": "Prepare Cancellation Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        -200
+      ],
+      "id": "handler_node_16"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.toEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "emailType": "text"
+      },
+      "name": "Send Cancellation Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        -200
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6sr232YN6z3c4tiW",
+          "name": "Gmail account"
+        }
+      },
+      "id": "handler_node_17"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Cancellation Payload').item.json.body || {};\nconst job = $('Lookup Cleaning Job').item.json || {};\nconst cancellationId = (body.bookingUid || '') + '_CANCEL_' + Date.now();\nreturn [{ json: {\n  cancellationId,\n  bookingUid:             body.bookingUid  || '',\n  propertyUid:            body.propertyUid || '',\n  jobStatusAtCancellation: job.status      || '',\n  cleanerId:              job.cleanerId    || '',\n  calendarEventId:        job.calendarEventId || '',\n  cancelledAtUTC:         new Date().toISOString(),\n  cleanerNotified:        'true'\n} }];"
+      },
+      "name": "Prepare Log Row ASSIGNED",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        -200
+      ],
+      "id": "handler_node_18"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CancelledBookings",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "name": "Log to CancelledBookings ASSIGNED",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2900,
+        -200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_19"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reservations",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cleaningStatus": "CANCELLED"
+          },
+          "matchingColumns": [
+            "bookingUid"
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Reservation Only",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        800,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_20"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Cancellation Payload').item.json.body || {};\nconst cancellationId = (body.bookingUid || '') + '_CANCEL_' + Date.now();\nreturn [{ json: {\n  cancellationId,\n  bookingUid:             body.bookingUid  || '',\n  propertyUid:            body.propertyUid || '',\n  jobStatusAtCancellation: 'NO_JOB',\n  cleanerId:              '',\n  calendarEventId:        '',\n  cancelledAtUTC:         new Date().toISOString(),\n  cleanerNotified:        'false'\n} }];"
+      },
+      "name": "Prepare Log Row NO JOB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        200
+      ],
+      "id": "handler_node_21"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12q_ZZJEkE6xQGJH0XxwCFlt821lpEBgCjLkfm0GmX-g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CancelledBookings",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "name": "Log to CancelledBookings NO JOB",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1200,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q52dbWoN6OaKRDZO",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "handler_node_22"
+    },
+    {
+      "parameters": {},
+      "name": "NoOp",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "handler_node_23"
+    }
+  ],
+  "connections": {
+    "Receive Cancellation Payload": {
+      "main": [
+        [
+          {
+            "node": "Lookup Cleaning Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Cleaning Job": {
+      "main": [
+        [
+          {
+            "node": "Prepare Cancellation Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Cancellation Context": {
+      "main": [
+        [
+          {
+            "node": "Job Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Found?": {
+      "main": [
+        [
+          {
+            "node": "Route by Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Reservation Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Job Status": {
+      "main": [
+        [
+          {
+            "node": "Update CleaningJob CANCELLED PENDING",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update CleaningJob CANCELLED ASSIGNED",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Update Reservation Only": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log Row NO JOB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log Row NO JOB": {
+      "main": [
+        [
+          {
+            "node": "Log to CancelledBookings NO JOB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CleaningJob CANCELLED PENDING": {
+      "main": [
+        [
+          {
+            "node": "Update Reservation CANCELLED PENDING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Reservation CANCELLED PENDING": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log Row PENDING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log Row PENDING": {
+      "main": [
+        [
+          {
+            "node": "Log to CancelledBookings PENDING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CleaningJob CANCELLED ASSIGNED": {
+      "main": [
+        [
+          {
+            "node": "Update Reservation CANCELLED ASSIGNED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Reservation CANCELLED ASSIGNED": {
+      "main": [
+        [
+          {
+            "node": "Update Admin Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Admin Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Update Cleaner Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Cleaner Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Lookup Cleaner Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Cleaner Email": {
+      "main": [
+        [
+          {
+            "node": "Lookup Property Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Property Name": {
+      "main": [
+        [
+          {
+            "node": "Prepare Cancellation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Cancellation Email": {
+      "main": [
+        [
+          {
+            "node": "Send Cancellation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Cancellation Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log Row ASSIGNED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log Row ASSIGNED": {
+      "main": [
+        [
+          {
+            "node": "Log to CancelledBookings ASSIGNED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "1",
+  "triggerCount": 1,
+  "id": "wf_cancellation_handler",
+  "tags": []
+}
